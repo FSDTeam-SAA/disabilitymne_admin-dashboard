@@ -2,7 +2,10 @@
 
 import { Menu } from "lucide-react";
 import { useSession } from "next-auth/react";
-import Image from "next/image";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+
+import { getAdminSettingsProfile } from "@/lib/api";
 
 interface AppHeaderProps {
   onMenuOpen: () => void;
@@ -10,11 +13,24 @@ interface AppHeaderProps {
 
 export function AppHeader({ onMenuOpen }: AppHeaderProps) {
   const { data: session } = useSession();
+  const [failedImageSrc, setFailedImageSrc] = useState<string | null>(null);
 
-  // Fallback data
-  const userName = session?.user?.name || "Disabilitymne";
-  const userEmail = session?.user?.email || "example@example.com";
-  const userImage = session?.user?.image || "/avatar.png";
+  const profileQuery = useQuery({
+    queryKey: ["admin-settings-profile"],
+    queryFn: getAdminSettingsProfile,
+  });
+
+  const profileImage = String(profileQuery.data?.profileImage || "");
+  const userName = useMemo(() => {
+    const firstName = String(profileQuery.data?.firstName || "").trim();
+    const lastName = String(profileQuery.data?.lastName || "").trim();
+    const fullName = `${firstName} ${lastName}`.trim();
+    return fullName || session?.user?.name || "Disabilitymne";
+  }, [profileQuery.data?.firstName, profileQuery.data?.lastName, session?.user?.name]);
+  const userEmail = String(profileQuery.data?.email || session?.user?.email || "example@example.com");
+  const shouldShowImage = Boolean(profileImage) && failedImageSrc !== profileImage;
+
+  const avatarFallback = userName.trim().charAt(0).toUpperCase() || "A";
 
   return (
     <header className="sticky top-0 z-20 border-b border-white/10 bg-[#010408]/80 backdrop-blur-md">
@@ -42,12 +58,18 @@ export function AppHeader({ onMenuOpen }: AppHeaderProps) {
           </div>
           
           <div className="relative size-10 overflow-hidden rounded-full border border-white/20 ring-2 ring-transparent hover:ring-white/10 transition-all">
-            <Image
-              src={userImage}
-              alt={`${userName}'s avatar`}
-              fill
-              className="object-cover"
-            />
+            {shouldShowImage ? (
+              <img
+                src={profileImage}
+                alt={`${userName}'s avatar`}
+                className="size-full object-cover"
+                onError={() => setFailedImageSrc(profileImage)}
+              />
+            ) : (
+              <div className="flex size-full items-center justify-center bg-white/10 text-sm font-semibold text-white">
+                {avatarFallback}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -4,12 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut, X } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { navItems } from "@/lib/constants";
+import { getAdminSettingsProfile } from "@/lib/api";
 import Image from "next/image";
 
 interface AppSidebarProps {
@@ -26,6 +28,24 @@ export function AppSidebar({
   const pathname = usePathname();
   const { data: session } = useSession();
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [failedImageSrc, setFailedImageSrc] = useState<string | null>(null);
+
+  const profileQuery = useQuery({
+    queryKey: ["admin-settings-profile"],
+    queryFn: getAdminSettingsProfile,
+  });
+
+  const profileImage = String(profileQuery.data?.profileImage || "");
+  const userName = useMemo(() => {
+    const firstName = String(profileQuery.data?.firstName || "").trim();
+    const lastName = String(profileQuery.data?.lastName || "").trim();
+    const fullName = `${firstName} ${lastName}`.trim();
+    return fullName || session?.user?.name || "Admin User";
+  }, [profileQuery.data?.firstName, profileQuery.data?.lastName, session?.user?.name]);
+  const userEmail = String(profileQuery.data?.email || session?.user?.email || "admin@example.com");
+  const shouldShowImage = Boolean(profileImage) && failedImageSrc !== profileImage;
+
+  const avatarFallback = userName.trim().charAt(0).toUpperCase() || "A";
 
   const sidebarContent = (
     <div className="flex h-full flex-col bg-[#010408] px-4 py-5 text-slate-100">
@@ -76,19 +96,25 @@ export function AppSidebar({
       <div className="mt-auto pt-6 border-t border-white/10">
         <div className="mb-4 flex items-center gap-3 rounded-xl bg-white/5 p-3 ring-1 ring-white/10">
           <div className="relative size-10 shrink-0 overflow-hidden rounded-full border border-white/20">
-            <Image
-              src={session?.user?.image || "/avatar.png"}
-              alt="Avatar"
-              fill
-              className="object-cover"
-            />
+            {shouldShowImage ? (
+              <img
+                src={profileImage}
+                alt={`${userName}'s avatar`}
+                className="size-full object-cover"
+                onError={() => setFailedImageSrc(profileImage)}
+              />
+            ) : (
+              <div className="flex size-full items-center justify-center bg-white/10 text-sm font-semibold text-white">
+                {avatarFallback}
+              </div>
+            )}
           </div>
           <div className="min-w-0 overflow-hidden">
             <p className="truncate text-sm font-semibold text-white">
-              {session?.user?.name || "Admin User"}
+              {userName}
             </p>
             <p className="truncate text-xs text-slate-400">
-              {session?.user?.email || "admin@example.com"}
+              {userEmail}
             </p>
           </div>
         </div>
