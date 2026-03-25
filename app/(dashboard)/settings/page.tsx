@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { Edit3 } from "lucide-react";
+import { SquarePen } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -39,6 +39,7 @@ export default function SettingsPage() {
   const queryClient = useQueryClient();
   const profileImageInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<"profile" | "password">("profile");
+  const [isProfileEditing, setIsProfileEditing] = useState(false);
   const [profileEdits, setProfileEdits] = useState<Partial<ProfileForm>>({});
   const [passwordData, setPasswordData] = useState(initialPassword);
 
@@ -72,6 +73,7 @@ export default function SettingsPage() {
     onSuccess: () => {
       toast.success("Profile updated successfully.");
       queryClient.invalidateQueries({ queryKey: ["admin-settings-profile"] });
+      setIsProfileEditing(false);
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
@@ -103,28 +105,36 @@ export default function SettingsPage() {
       <PageTitle title="Settings" breadcrumb="Dashboard  >  Settings" />
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <Button
-          variant={activeTab === "profile" ? "default" : "outline"}
+        <button
+          type="button"
           onClick={() => setActiveTab("profile")}
-          className="h-11"
+          className={`h-11 rounded-md border text-sm font-medium transition-colors ${
+            activeTab === "profile"
+              ? "border-[#8ecaf2] bg-[#72B4E6] text-[#112f52]"
+              : "border-white/25 bg-white/95 text-[#4b5a78]"
+          }`}
         >
           Personal Information
-        </Button>
-        <Button
-          variant={activeTab === "password" ? "default" : "outline"}
+        </button>
+        <button
+          type="button"
           onClick={() => setActiveTab("password")}
-          className="h-11"
+          className={`h-11 rounded-md border text-sm font-medium transition-colors ${
+            activeTab === "password"
+              ? "border-[#8ecaf2] bg-[#72B4E6] text-[#112f52]"
+              : "border-white/25 bg-white/95 text-[#4b5a78]"
+          }`}
         >
           Change Password
-        </Button>
+        </button>
       </div>
 
       {profileQuery.isLoading ? (
         <TableSkeleton rows={6} />
       ) : activeTab === "profile" ? (
-        <Card>
+        <Card className="overflow-hidden border-[#80b8df42]">
           <CardContent className="space-y-5 p-4">
-            <div className="flex flex-col gap-4 rounded-lg border border-white/10 bg-white/5 p-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-4 rounded-lg border border-white/10 bg-[radial-gradient(circle_at_50%_50%,rgba(114,180,230,.16)_0%,rgba(20,45,78,.2)_44%,rgba(14,32,60,.2)_100%)] p-4 md:flex-row md:items-center md:justify-between">
               <div className="flex items-center gap-3">
                 {profileData.profileImage ? (
                   <img src={profileData.profileImage} alt="Profile" className="size-16 rounded-full object-cover" />
@@ -135,17 +145,17 @@ export default function SettingsPage() {
                 )}
                 <div>
                   <p className="text-3xl font-semibold text-white">{`${profileData.firstName} ${profileData.lastName}`.trim() || "Admin"}</p>
-                  <p className="text-sm text-slate-300">@admin</p>
+                  <p className="text-sm text-slate-300">@{String(profileQuery.data?.role || "admin")}</p>
                 </div>
               </div>
               <Button
                 type="button"
-                variant="secondary"
+                className="h-10 rounded-md bg-[#72B4E6] px-6 text-sm font-medium text-white hover:bg-[#84c4ef]"
                 disabled={profileImageMutation.isPending}
                 onClick={() => profileImageInputRef.current?.click()}
               >
-                <Edit3 className="mr-2 size-4" />
-                {profileImageMutation.isPending ? "Uploading..." : "Update Image"}
+                <SquarePen className="mr-2 size-4" />
+                {profileImageMutation.isPending ? "Uploading..." : "Edit"}
               </Button>
               <input
                 ref={profileImageInputRef}
@@ -168,12 +178,25 @@ export default function SettingsPage() {
                 profileMutation.mutate(profileData);
               }}
             >
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-3xl font-semibold text-white">Personal Information</p>
+                <Button
+                  type="button"
+                  className="h-10 rounded-md bg-[#72B4E6] px-6 text-sm font-medium text-white hover:bg-[#84c4ef]"
+                  onClick={() => setIsProfileEditing((prev) => !prev)}
+                >
+                  <SquarePen className="mr-2 size-4" />
+                  Edit
+                </Button>
+              </div>
+
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>First Name</Label>
                   <Input
                     value={profileData.firstName}
                     onChange={(event) => setProfileEdits((prev) => ({ ...prev, firstName: event.target.value }))}
+                    readOnly={!isProfileEditing}
                     required
                   />
                 </div>
@@ -182,6 +205,7 @@ export default function SettingsPage() {
                   <Input
                     value={profileData.lastName}
                     onChange={(event) => setProfileEdits((prev) => ({ ...prev, lastName: event.target.value }))}
+                    readOnly={!isProfileEditing}
                   />
                 </div>
                 <div className="space-y-2">
@@ -190,6 +214,7 @@ export default function SettingsPage() {
                     type="email"
                     value={profileData.email}
                     onChange={(event) => setProfileEdits((prev) => ({ ...prev, email: event.target.value }))}
+                    readOnly={!isProfileEditing}
                     required
                   />
                 </div>
@@ -198,6 +223,7 @@ export default function SettingsPage() {
                   <Input
                     value={profileData.phone}
                     onChange={(event) => setProfileEdits((prev) => ({ ...prev, phone: event.target.value }))}
+                    readOnly={!isProfileEditing}
                   />
                 </div>
               </div>
@@ -206,21 +232,32 @@ export default function SettingsPage() {
                 <Textarea
                   value={profileData.bio}
                   onChange={(event) => setProfileEdits((prev) => ({ ...prev, bio: event.target.value }))}
+                  readOnly={!isProfileEditing}
                 />
               </div>
-              <div className="grid grid-cols-1 gap-3 pt-2 md:grid-cols-2">
-                <Button type="button" variant="outline" onClick={() => setProfileEdits({})}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={profileMutation.isPending}>
-                  {profileMutation.isPending ? "Saving..." : "Save Changes"}
-                </Button>
-              </div>
+
+              {isProfileEditing ? (
+                <div className="grid grid-cols-1 gap-3 pt-2 md:grid-cols-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setProfileEdits({});
+                      setIsProfileEditing(false);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={profileMutation.isPending}>
+                    {profileMutation.isPending ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
+              ) : null}
             </form>
           </CardContent>
         </Card>
       ) : (
-        <Card>
+        <Card className="overflow-hidden border-[#80b8df42]">
           <CardContent className="space-y-4 p-4">
             <form
               className="space-y-4 rounded-lg border border-white/15 p-4"

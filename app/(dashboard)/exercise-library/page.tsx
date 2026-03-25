@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit3, Eye, Plus, Search, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Eye, Plus, SquarePen, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -8,8 +8,6 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageTitle } from "@/components/shared/page-title";
-import { Pagination } from "@/components/shared/pagination";
-import { StatusChip } from "@/components/shared/status-chip";
 import { TableSkeleton } from "@/components/shared/table-skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -50,12 +48,24 @@ const defaultForm = {
   status: "published",
 };
 
+const getPlanMeta = (exercise: Exercise) => {
+  if (exercise.userType === "all_user") {
+    return {
+      label: "All user",
+      className: "bg-[#37d66f] text-white",
+    };
+  }
+
+  return {
+    label: "Premium user",
+    className: "bg-[#ff9f31] text-white",
+  };
+};
+
 export default function ExerciseLibraryPage() {
   const queryClient = useQueryClient();
 
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
@@ -76,8 +86,8 @@ export default function ExerciseLibraryPage() {
   };
 
   const exercisesQuery = useQuery({
-    queryKey: ["admin-exercises", page, search, status],
-    queryFn: () => getAdminExercises({ page, limit: 10, search, status: status || undefined }),
+    queryKey: ["admin-exercises", page],
+    queryFn: () => getAdminExercises({ page, limit: 10 }),
   });
 
   const premiumUsersQuery = useQuery({
@@ -129,6 +139,16 @@ export default function ExerciseLibraryPage() {
   });
 
   const exercises = useMemo(() => exercisesQuery.data?.data || [], [exercisesQuery.data?.data]);
+  const totalCount = exercisesQuery.data?.meta?.total || 0;
+  const totalPages = exercisesQuery.data?.meta?.totalPages || 1;
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 1) return [];
+
+    return Array.from({ length: totalPages }, (_, index) => index + 1).slice(
+      Math.max(0, page - 2),
+      Math.min(totalPages, page + 1)
+    );
+  }, [page, totalPages]);
 
   const onOpenCreate = () => {
     setSelectedExercise(null);
@@ -235,123 +255,158 @@ export default function ExerciseLibraryPage() {
         title="Exercise Library"
         breadcrumb="Dashboard  >  Exercise Library"
         action={
-          <Button className="w-full md:w-auto" onClick={onOpenCreate}>
+          <Button
+            className="w-full rounded-md border border-[#9cd7ff6e] bg-[linear-gradient(180deg,#98d5f8_0%,#5d97c4_100%)] px-6 text-sm font-semibold text-white shadow-[0_12px_30px_-16px_rgba(126,195,244,.8)] hover:brightness-105 md:w-auto"
+            onClick={onOpenCreate}
+          >
             <Plus className="mr-2 size-4" />
             Add new Exercise
           </Button>
         }
       />
 
-      <Card>
-        <CardContent className="space-y-4 p-4">
-          <div className="flex flex-col gap-3 md:flex-row">
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-300" />
-              <Input
-                className="pl-10"
-                placeholder="Search exercise"
-                value={search}
-                onChange={(event) => {
-                  setPage(1);
-                  setSearch(event.target.value);
-                }}
-              />
-            </div>
-            <Select
-              value={status}
-              className="md:w-48"
-              onChange={(event) => {
-                setPage(1);
-                setStatus(event.target.value);
-              }}
-            >
-              <option value="">All status</option>
-              <option value="published">Published</option>
-              <option value="draft">Draft</option>
-              <option value="archived">Archived</option>
-            </Select>
-          </div>
-
+      <Card className="overflow-hidden border-[#80b8df42]">
+        <CardContent className="space-y-4 p-0">
           {exercisesQuery.isLoading ? (
-            <TableSkeleton rows={10} />
+            <div className="px-4 pb-4 pt-4">
+              <TableSkeleton rows={10} />
+            </div>
           ) : exercises.length === 0 ? (
-            <EmptyState title="No exercises found" description="Create your first exercise." />
+            <div className="px-4 pb-6 pt-4">
+              <EmptyState title="No exercises found" description="Create your first exercise." />
+            </div>
           ) : (
             <>
-              <Table>
+              <Table className="min-w-[980px]">
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Exercise Image</TableHead>
-                    <TableHead>Exercise Name</TableHead>
-                    <TableHead>User Type</TableHead>
-                    <TableHead>Exercise Time</TableHead>
-                    <TableHead>Visibility</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="h-11 text-xs">Exercise Image</TableHead>
+                    <TableHead className="h-11 text-xs">Program Name</TableHead>
+                    <TableHead className="h-11 text-xs">Exercise Name</TableHead>
+                    <TableHead className="h-11 text-xs">Plan</TableHead>
+                    <TableHead className="h-11 text-xs">Visibility</TableHead>
+                    <TableHead className="h-11 text-xs">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {exercises.map((exercise) => (
-                    <TableRow key={exercise.id}>
-                      <TableCell>
+                  {exercises.map((exercise) => {
+                    const planMeta = getPlanMeta(exercise);
+                    const programName = exercise.programNames?.[0] || "-";
+
+                    return (
+                    <TableRow key={exercise.id} className="border-white/30 hover:bg-white/[0.03]">
+                      <TableCell className="py-3">
                         {exercise.exerciseImage ? (
                           <img src={exercise.exerciseImage} alt={exercise.exerciseName} className="size-10 rounded-full object-cover" />
                         ) : (
                           <span className="text-slate-400">-</span>
                         )}
                       </TableCell>
-                      <TableCell>{exercise.exerciseName}</TableCell>
-                      <TableCell className="capitalize">{exercise.userType.replace("_", " ")}</TableCell>
-                      <TableCell>{exercise.executionMode === "countdown" ? `${exercise.durationSeconds}s` : `${exercise.reps} reps`}</TableCell>
-                      <TableCell>
-                        <input
-                          type="checkbox"
-                          className="h-5 w-5 accent-[#72B4E6]"
-                          checked={exercise.isVisibleInLibrary}
-                          onChange={(event) => visibilityMutation.mutate({ id: exercise.id, visible: event.target.checked })}
-                        />
+                      <TableCell className="py-3 text-sm">{programName}</TableCell>
+                      <TableCell className="py-3 text-sm">{exercise.exerciseName}</TableCell>
+                      <TableCell className="py-3">
+                        <span className={`inline-flex min-w-24 items-center justify-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold ${planMeta.className}`}>
+                          {planMeta.label}
+                          <ChevronDown className="size-3" />
+                        </span>
                       </TableCell>
-                      <TableCell>
-                        <StatusChip value={exercise.status} />
+                      <TableCell className="py-3">
+                        <label className="relative inline-flex cursor-pointer items-center">
+                          <input
+                            type="checkbox"
+                            className="peer sr-only"
+                            checked={exercise.isVisibleInLibrary}
+                            onChange={(event) => visibilityMutation.mutate({ id: exercise.id, visible: event.target.checked })}
+                            aria-label={`Toggle visibility for ${exercise.exerciseName}`}
+                          />
+                          <span className="h-6 w-11 rounded-full bg-[#5f7fa2] transition-colors peer-checked:bg-[#72B4E6]" />
+                          <span className="pointer-events-none absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
+                        </label>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-3">
                         <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
+                          <button
+                            type="button"
+                            className="inline-flex h-8 items-center gap-2 rounded-md border border-[#2f80cc] bg-[#102849] px-3 text-xs font-semibold text-[#63bfff] transition-colors hover:bg-[#16345c]"
                             onClick={() => {
                               setSelectedExercise(exercise);
                               setViewOpen(true);
                             }}
+                            aria-label="View exercise details"
                           >
-                            <Eye className="size-4" />
-                          </Button>
-                          <Button variant="secondary" size="icon" onClick={() => onOpenEdit(exercise)}>
-                            <Edit3 className="size-4" />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="icon"
+                            <Eye className="size-3.5" />
+                            View Details
+                          </button>
+                          <button
+                            type="button"
+                            className="inline-flex size-8 items-center justify-center rounded-full bg-[#22bf61] text-white transition-colors hover:bg-[#2cd46d]"
+                            onClick={() => onOpenEdit(exercise)}
+                            aria-label="Edit exercise"
+                          >
+                            <SquarePen className="size-4" />
+                          </button>
+                          <button
+                            type="button"
+                            className="inline-flex size-8 items-center justify-center rounded-full bg-[#ff2f5f] text-white transition-colors hover:bg-[#ff416f]"
                             onClick={() => {
                               setSelectedExercise(exercise);
                               setDeleteOpen(true);
                             }}
+                            aria-label="Delete exercise"
                           >
                             <Trash2 className="size-4" />
-                          </Button>
+                          </button>
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
 
-              <p className="text-sm text-slate-300">
-                Showing {exercises.length > 0 ? (page - 1) * 10 + 1 : 0} to {(page - 1) * 10 + exercises.length} of {exercisesQuery.data?.meta?.total || 0}
-                results
-              </p>
-
-              <Pagination page={page} totalPages={exercisesQuery.data?.meta?.totalPages || 1} onPageChange={setPage} />
+              <div className="flex flex-col gap-2 border-t border-white/25 px-4 pb-4 pt-3 md:flex-row md:items-center md:justify-between">
+                <p className="text-xs text-slate-300/80">
+                  Showing {exercises.length > 0 ? (page - 1) * 10 + 1 : 0} to {(page - 1) * 10 + exercises.length} of {totalCount}
+                  results
+                </p>
+                {totalPages > 1 ? (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      className="inline-flex size-8 items-center justify-center rounded border border-white/35 text-slate-100 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                      onClick={() => setPage(Math.max(1, page - 1))}
+                      disabled={page <= 1}
+                      aria-label="Previous page"
+                    >
+                      <ChevronLeft className="size-4" />
+                    </button>
+                    {pageNumbers.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        className={`inline-flex h-8 min-w-8 items-center justify-center rounded border px-2 text-xs font-semibold transition-colors ${
+                          item === page
+                            ? "border-white bg-white text-[#0f2747]"
+                            : "border-white/35 bg-transparent text-slate-100 hover:bg-white/10"
+                        }`}
+                        onClick={() => setPage(item)}
+                        aria-label={`Go to page ${item}`}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className="inline-flex size-8 items-center justify-center rounded border border-[#7fc7f6] bg-[#6aaee0] text-white transition-colors hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40"
+                      onClick={() => setPage(Math.min(totalPages, page + 1))}
+                      disabled={page >= totalPages}
+                      aria-label="Next page"
+                    >
+                      <ChevronRight className="size-4" />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </>
           )}
         </CardContent>

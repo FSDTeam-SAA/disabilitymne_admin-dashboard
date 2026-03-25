@@ -60,6 +60,8 @@ export type Program = {
   isActive: boolean;
   programImage: string | null;
   programThumbnail: string | null;
+  programImages: string[];
+  programThumbnails: string[];
   createdAt: string;
   updatedAt: string;
 };
@@ -177,6 +179,46 @@ export type ChatMessage = {
   attachments: Array<{ url: string; publicId: string; mimetype: string; size: number }>;
   readAt: string | null;
   isMine: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminSettingsProfile = {
+  id: string;
+  role: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  bio: string;
+  preferredLanguage: string;
+  accessibilityPreferences: {
+    largerText: boolean;
+    highContrast: boolean;
+    reducedMotion: boolean;
+    screenReaderOptimized: boolean;
+  };
+  profileImage: string | null;
+  gender: string | null;
+  age: number | null;
+  weightCurrent: number | null;
+  goalWeight: number | null;
+  height: number | null;
+  fitnessGoals: string[];
+  mobilityType: string | null;
+  mobilityTypeOther: string | null;
+  fitnessExperience: string | null;
+  onboardingStep: number;
+  onboardingCompleted: boolean;
+  selectedPlan: string | null;
+  subscriptionStatus: string;
+  trialActivatedAt: string | null;
+  trialEndsAt: string | null;
+  subscriptionStartedAt: string | null;
+  subscriptionEndsAt: string | null;
+  lastLoginAt: string | null;
+  accountStatus: string;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -606,7 +648,7 @@ export async function getWorkoutExperienceById(experienceId: string) {
 }
 
 export async function getAdminSettingsProfile() {
-  const response = await api.get<ApiEnvelope<Record<string, unknown>>>("/users/me/profile");
+  const response = await api.get<ApiEnvelope<AdminSettingsProfile>>("/users/me/profile");
   return unwrap(response);
 }
 
@@ -618,7 +660,7 @@ export async function updateAdminSettingsProfile(payload: {
   bio?: string;
   profileImage?: string | null;
 }) {
-  const response = await api.patch<ApiEnvelope<Record<string, unknown>>>("/admin/settings/profile", payload);
+  const response = await api.patch<ApiEnvelope<AdminSettingsProfile>>("/admin/settings/profile", payload);
   return unwrap(response);
 }
 
@@ -626,7 +668,7 @@ export async function updateAdminSettingsProfileImage(profileImage: File) {
   const formData = new FormData();
   formData.append("profileImage", profileImage);
 
-  const response = await api.patch<ApiEnvelope<Record<string, unknown>>>("/users/me/profile-image", formData, {
+  const response = await api.patch<ApiEnvelope<AdminSettingsProfile>>("/users/me/profile-image", formData, {
     headers: {
       "Content-Type": "multipart/form-data",
     },

@@ -23,7 +23,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 flex-col min-w-0 h-screen overflow-hidden">
         <AppHeader onMenuOpen={() => setMobileOpen(true)} />
         
-        <main className="relative flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8">
+        <main className="relative flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 ">
           {/* Background Layer */}
           <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_35%,rgba(63,101,151,.35),transparent_45%),radial-gradient(circle_at_80%_20%,rgba(97,132,186,.24),transparent_40%),linear-gradient(130deg,#152947_0%,#1b3157_43%,#192f54_100%)]" />
           

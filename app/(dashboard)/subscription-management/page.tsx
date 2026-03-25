@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit3, Plus, Trash2 } from "lucide-react";
+import { Check, SquarePen, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -23,7 +23,6 @@ import {
   updateSubscriptionPlan,
   type SubscriptionPlan,
 } from "@/lib/api";
-import { formatCurrency } from "@/lib/utils";
 
 const defaultForm = {
   key: "monthly_plan",
@@ -34,6 +33,29 @@ const defaultForm = {
   durationMonths: "1",
   trialDays: "0",
   features: "",
+};
+
+const planThemeByKey: Record<string, { border: string; price: string; check: string }> = {
+  free_trial: {
+    border: "border-[#2cd46d]",
+    price: "text-[#2cd46d]",
+    check: "text-[#2cd46d]",
+  },
+  monthly_plan: {
+    border: "border-[#1f97ff]",
+    price: "text-[#1f97ff]",
+    check: "text-[#1f97ff]",
+  },
+  six_month_plan: {
+    border: "border-[#ffcb00]",
+    price: "text-[#ffcb00]",
+    check: "text-[#ffcb00]",
+  },
+  premium_plan: {
+    border: "border-[#ff9f31]",
+    price: "text-[#ff9f31]",
+    check: "text-[#ff9f31]",
+  },
 };
 
 export default function SubscriptionManagementPage() {
@@ -85,12 +107,6 @@ export default function SubscriptionManagementPage() {
 
   const plans = useMemo(() => (plansQuery.data || []).filter((plan) => plan.isActive), [plansQuery.data]);
 
-  const onOpenCreate = () => {
-    setSelectedPlan(null);
-    setFormData(defaultForm);
-    setFormOpen(true);
-  };
-
   const onOpenEdit = (plan: SubscriptionPlan) => {
     setSelectedPlan(plan);
     setFormData({
@@ -132,16 +148,7 @@ export default function SubscriptionManagementPage() {
 
   return (
     <div className="space-y-5">
-      <PageTitle
-        title="Subscription Management"
-        breadcrumb="Dashboard  >  Subscription Management"
-        action={
-          <Button className="w-full md:w-auto" onClick={onOpenCreate}>
-            <Plus className="mr-2 size-4" />
-            Add new Subscription
-          </Button>
-        }
-      />
+      <PageTitle title="Subscription Management" breadcrumb="Dashboard  >  Subscription Management" />
 
       {plansQuery.isLoading ? (
         <div className="grid grid-cols-1 gap-4">
@@ -153,47 +160,47 @@ export default function SubscriptionManagementPage() {
         <EmptyState title="No plans" description="Create your first plan." />
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {plans.map((plan, index) => {
-            const borderColor =
-              index % 4 === 0
-                ? "border-[#3dcc5f]"
-                : index % 4 === 1
-                  ? "border-[#1890ff]"
-                  : index % 4 === 2
-                    ? "border-[#ffcb00]"
-                    : "border-[#ff9f31]";
+          {plans.map((plan) => {
+            const theme = planThemeByKey[plan.key] || planThemeByKey.monthly_plan;
+            const priceLabel = `${Number(plan.price || 0).toFixed(2)}$`;
 
             return (
-              <Card key={plan.key} className={`border-2 ${borderColor}`}>
+              <Card key={plan.key} className={`border ${theme.border}`}>
                 <CardContent className="space-y-4 p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h3 className="text-4xl font-semibold text-white">{plan.name}</h3>
-                      <p className="text-sm text-slate-300">{plan.durationLabel}</p>
+                      <h3 className="text-3xl font-semibold text-white">{plan.name}</h3>
+                      <p className="text-xs text-slate-300">{plan.durationLabel}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-4xl font-bold text-white">{formatCurrency(plan.price)}</p>
-                      <div className="mt-2 flex justify-end gap-2">
-                        <Button variant="secondary" size="icon" onClick={() => onOpenEdit(plan)}>
-                          <Edit3 className="size-4" />
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="icon"
+                    <div className="flex flex-col items-end gap-3 text-right">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="inline-flex size-8 items-center justify-center rounded-full bg-[#22bf61] text-white transition-colors hover:bg-[#2cd46d]"
+                          onClick={() => onOpenEdit(plan)}
+                          aria-label="Edit plan"
+                        >
+                          <SquarePen className="size-4" />
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex size-8 items-center justify-center rounded-full bg-[#ff2f5f] text-white transition-colors hover:bg-[#ff416f]"
                           onClick={() => {
                             setSelectedPlan(plan);
                             setDeleteOpen(true);
                           }}
+                          aria-label="Delete plan"
                         >
                           <Trash2 className="size-4" />
-                        </Button>
+                        </button>
                       </div>
+                      <p className={`text-4xl font-bold ${theme.price}`}>{priceLabel}</p>
                     </div>
                   </div>
                   <ul className="space-y-2 text-sm text-slate-100">
                     {(plan.features || []).map((feature) => (
                       <li key={`${plan.key}-${feature}`} className="flex items-start gap-2">
-                        <span className="mt-1 size-2 rounded-full bg-[#72B4E6]" />
+                        <Check className={`mt-0.5 size-4 ${theme.check}`} />
                         <span>{feature}</span>
                       </li>
                     ))}

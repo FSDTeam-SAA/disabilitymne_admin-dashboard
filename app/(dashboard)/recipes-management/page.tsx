@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit3, Eye, Plus, Search, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Plus, SquarePen, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -8,8 +8,6 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageTitle } from "@/components/shared/page-title";
-import { Pagination } from "@/components/shared/pagination";
-import { StatusChip } from "@/components/shared/status-chip";
 import { TableSkeleton } from "@/components/shared/table-skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -50,8 +48,6 @@ export default function RecipesManagementPage() {
   const queryClient = useQueryClient();
 
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
@@ -66,8 +62,8 @@ export default function RecipesManagementPage() {
   };
 
   const recipesQuery = useQuery({
-    queryKey: ["admin-recipes", page, search, status],
-    queryFn: () => getAdminRecipes({ page, limit: 10, search, status: status || undefined }),
+    queryKey: ["admin-recipes", page],
+    queryFn: () => getAdminRecipes({ page, limit: 10 }),
   });
 
   const premiumUsersQuery = useQuery({
@@ -111,6 +107,16 @@ export default function RecipesManagementPage() {
   });
 
   const recipes = useMemo(() => recipesQuery.data?.data || [], [recipesQuery.data?.data]);
+  const totalCount = recipesQuery.data?.meta?.total || 0;
+  const totalPages = recipesQuery.data?.meta?.totalPages || 1;
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 1) return [];
+
+    return Array.from({ length: totalPages }, (_, index) => index + 1).slice(
+      Math.max(0, page - 2),
+      Math.min(totalPages, page + 1)
+    );
+  }, [page, totalPages]);
 
   const onOpenCreate = () => {
     setSelectedRecipe(null);
@@ -187,116 +193,140 @@ export default function RecipesManagementPage() {
         title="Recipes Management"
         breadcrumb="Dashboard  >  Recipes Management"
         action={
-          <Button className="w-full md:w-auto" onClick={onOpenCreate}>
+          <Button
+            className="w-full rounded-md border border-[#9cd7ff6e] bg-[linear-gradient(180deg,#98d5f8_0%,#5d97c4_100%)] px-6 text-sm font-semibold text-white shadow-[0_12px_30px_-16px_rgba(126,195,244,.8)] hover:brightness-105 md:w-auto"
+            onClick={onOpenCreate}
+          >
             <Plus className="mr-2 size-4" />
             Add new Recipes
           </Button>
         }
       />
 
-      <Card>
-        <CardContent className="space-y-4 p-4">
-          <div className="flex flex-col gap-3 md:flex-row">
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-300" />
-              <Input
-                className="pl-10"
-                placeholder="Search recipes"
-                value={search}
-                onChange={(event) => {
-                  setPage(1);
-                  setSearch(event.target.value);
-                }}
-              />
-            </div>
-            <Select
-              value={status}
-              className="md:w-48"
-              onChange={(event) => {
-                setPage(1);
-                setStatus(event.target.value);
-              }}
-            >
-              <option value="">All status</option>
-              <option value="published">Published</option>
-              <option value="draft">Draft</option>
-              <option value="archived">Archived</option>
-            </Select>
-          </div>
-
+      <Card className="overflow-hidden border-[#80b8df42]">
+        <CardContent className="space-y-4 p-0">
           {recipesQuery.isLoading ? (
-            <TableSkeleton rows={10} />
+            <div className="px-4 pb-4 pt-4">
+              <TableSkeleton rows={10} />
+            </div>
           ) : recipes.length === 0 ? (
-            <EmptyState title="No recipes found" description="Create your first recipe." />
+            <div className="px-4 pb-6 pt-4">
+              <EmptyState title="No recipes found" description="Create your first recipe." />
+            </div>
           ) : (
             <>
-              <Table>
+              <Table className="min-w-[980px]">
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Recipes Image</TableHead>
-                    <TableHead>Recipes Name</TableHead>
-                    <TableHead>Recipes Type</TableHead>
-                    <TableHead>Recipes Time</TableHead>
-                    <TableHead>High proteins</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="h-11 text-xs">Recipes Image</TableHead>
+                    <TableHead className="h-11 text-xs">Recipes Name</TableHead>
+                    <TableHead className="h-11 text-xs">Recipes Type</TableHead>
+                    <TableHead className="h-11 text-xs">Recipes Time</TableHead>
+                    <TableHead className="h-11 text-xs">High proteins</TableHead>
+                    <TableHead className="h-11 text-xs">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {recipes.map((recipe) => (
-                    <TableRow key={recipe.id}>
-                      <TableCell>
+                  {recipes.map((recipe) => {
+                    const nutritionSummary = recipe.nutritionSummary || `${recipe.caloriesKcal}kcal, ${recipe.proteinG}gprotein, ${recipe.carbsG}gcarbs, ${recipe.fatG}gfat`;
+
+                    return (
+                    <TableRow key={recipe.id} className="border-white/30 hover:bg-white/[0.03]">
+                      <TableCell className="py-3">
                         {recipe.recipeImage ? (
                           <img src={recipe.recipeImage} alt={recipe.recipeName} className="size-10 rounded-full object-cover" />
                         ) : (
                           <span className="text-slate-400">-</span>
                         )}
                       </TableCell>
-                      <TableCell>{recipe.recipeName}</TableCell>
-                      <TableCell className="capitalize">{recipe.recipeType}</TableCell>
-                      <TableCell>{recipe.durationMinutes} min</TableCell>
-                      <TableCell>{recipe.nutritionSummary}</TableCell>
-                      <TableCell>
-                        <StatusChip value={recipe.status} />
-                      </TableCell>
-                      <TableCell>
+                      <TableCell className="py-3 text-sm">{recipe.recipeName}</TableCell>
+                      <TableCell className="py-3 text-sm capitalize">{recipe.recipeType}</TableCell>
+                      <TableCell className="py-3 text-sm">{recipe.durationMinutes} minute</TableCell>
+                      <TableCell className="py-3 text-xs leading-4 text-slate-200">{nutritionSummary}</TableCell>
+                      <TableCell className="py-3">
                         <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
+                          <button
+                            type="button"
+                            className="inline-flex h-8 items-center gap-2 rounded-md border border-[#2f80cc] bg-[#102849] px-3 text-xs font-semibold text-[#63bfff] transition-colors hover:bg-[#16345c]"
                             onClick={() => {
                               setSelectedRecipe(recipe);
                               setViewOpen(true);
                             }}
+                            aria-label="View recipe details"
                           >
-                            <Eye className="size-4" />
-                          </Button>
-                          <Button variant="secondary" size="icon" onClick={() => onOpenEdit(recipe)}>
-                            <Edit3 className="size-4" />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="icon"
+                            <Eye className="size-3.5" />
+                            View Details
+                          </button>
+                          <button
+                            type="button"
+                            className="inline-flex size-8 items-center justify-center rounded-full bg-[#22bf61] text-white transition-colors hover:bg-[#2cd46d]"
+                            onClick={() => onOpenEdit(recipe)}
+                            aria-label="Edit recipe"
+                          >
+                            <SquarePen className="size-4" />
+                          </button>
+                          <button
+                            type="button"
+                            className="inline-flex size-8 items-center justify-center rounded-full bg-[#ff2f5f] text-white transition-colors hover:bg-[#ff416f]"
                             onClick={() => {
                               setSelectedRecipe(recipe);
                               setDeleteOpen(true);
                             }}
+                            aria-label="Delete recipe"
                           >
                             <Trash2 className="size-4" />
-                          </Button>
+                          </button>
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
 
-              <p className="text-sm text-slate-300">
-                Showing {recipes.length > 0 ? (page - 1) * 10 + 1 : 0} to {(page - 1) * 10 + recipes.length} of {recipesQuery.data?.meta?.total || 0}
-                results
-              </p>
-
-              <Pagination page={page} totalPages={recipesQuery.data?.meta?.totalPages || 1} onPageChange={setPage} />
+              <div className="flex flex-col gap-2 border-t border-white/25 px-4 pb-4 pt-3 md:flex-row md:items-center md:justify-between">
+                <p className="text-xs text-slate-300/80">
+                  Showing {recipes.length > 0 ? (page - 1) * 10 + 1 : 0} to {(page - 1) * 10 + recipes.length} of {totalCount}
+                  results
+                </p>
+                {totalPages > 1 ? (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      className="inline-flex size-8 items-center justify-center rounded border border-white/35 text-slate-100 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                      onClick={() => setPage(Math.max(1, page - 1))}
+                      disabled={page <= 1}
+                      aria-label="Previous page"
+                    >
+                      <ChevronLeft className="size-4" />
+                    </button>
+                    {pageNumbers.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        className={`inline-flex h-8 min-w-8 items-center justify-center rounded border px-2 text-xs font-semibold transition-colors ${
+                          item === page
+                            ? "border-white bg-white text-[#0f2747]"
+                            : "border-white/35 bg-transparent text-slate-100 hover:bg-white/10"
+                        }`}
+                        onClick={() => setPage(item)}
+                        aria-label={`Go to page ${item}`}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className="inline-flex size-8 items-center justify-center rounded border border-[#7fc7f6] bg-[#6aaee0] text-white transition-colors hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40"
+                      onClick={() => setPage(Math.min(totalPages, page + 1))}
+                      disabled={page >= totalPages}
+                      aria-label="Next page"
+                    >
+                      <ChevronRight className="size-4" />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </>
           )}
         </CardContent>

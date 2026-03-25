@@ -23,7 +23,7 @@ export function ConfirmDialog({
   loading = false,
 }: ConfirmDialogProps) {
   return (
-    <Modal open={open} onClose={onClose} className="max-w-xl" title={title}>
+    <Modal open={open} onClose={onClose} className="max-w-lg" title={title}>
       <div className="space-y-6">
         <p className="text-sm text-slate-300">{description}</p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
