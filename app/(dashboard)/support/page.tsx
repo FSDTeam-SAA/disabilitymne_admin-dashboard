@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageTitle } from "@/components/shared/page-title";
+import { Pagination } from "@/components/shared/pagination";
 import { TableSkeleton } from "@/components/shared/table-skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ const getUnreadCount = (status: SupportTicket["status"]) => {
 
 export default function SupportPage() {
   const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [ticketUpdate, setTicketUpdate] = useState<{
     status: SupportTicket["status"];
@@ -36,11 +38,11 @@ export default function SupportPage() {
   }>({ status: "open", adminResponse: "" });
 
   const ticketsQuery = useQuery({
-    queryKey: ["support-tickets", "messages-feed"],
+    queryKey: ["support-tickets", "messages-feed", page],
     queryFn: () =>
       getSupportTickets({
-        page: 1,
-        limit: 20,
+        page,
+        limit: 10,
       }),
   });
 
@@ -61,6 +63,8 @@ export default function SupportPage() {
   });
 
   const tickets = useMemo(() => ticketsQuery.data?.data || [], [ticketsQuery.data?.data]);
+  const totalCount = ticketsQuery.data?.meta?.total || 0;
+  const totalPages = ticketsQuery.data?.meta?.totalPages || 1;
 
   return (
     <div className="space-y-5">
@@ -115,6 +119,14 @@ export default function SupportPage() {
               </button>
             );
           })}
+
+          <div className="flex flex-col gap-2 border-t border-white/25 px-2 pb-1 pt-2 md:flex-row md:items-center md:justify-between">
+            <p className="text-xs text-slate-300/80">
+              Showing {tickets.length > 0 ? (page - 1) * 10 + 1 : 0} to {(page - 1) * 10 + tickets.length} of {totalCount}
+              results
+            </p>
+            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+          </div>
         </div>
       )}
 

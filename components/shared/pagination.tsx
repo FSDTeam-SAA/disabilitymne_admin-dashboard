@@ -2,8 +2,6 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-
 interface PaginationProps {
   page: number;
   totalPages: number;
@@ -19,29 +17,40 @@ export function Pagination({ page, totalPages, onPageChange }: PaginationProps) 
   );
 
   return (
-    <div className="mt-4 flex items-center justify-end gap-2">
-      <Button variant="outline" size="icon" onClick={() => onPageChange(Math.max(1, page - 1))} disabled={page <= 1}>
+    <div className="mt-3 flex items-center justify-end gap-1">
+      <button
+        type="button"
+        className="inline-flex size-8 items-center justify-center rounded border border-white/35 text-slate-100 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+        onClick={() => onPageChange(Math.max(1, page - 1))}
+        disabled={page <= 1}
+        aria-label="Previous page"
+      >
         <ChevronLeft className="size-4" />
-      </Button>
+      </button>
       {pages.map((item) => (
-        <Button
+        <button
           key={item}
-          variant={item === page ? "secondary" : "outline"}
-          size="sm"
+          type="button"
+          className={`inline-flex h-8 min-w-8 items-center justify-center rounded border px-2 text-xs font-semibold transition-colors ${
+            item === page
+              ? "border-white bg-white text-[#0f2747]"
+              : "border-white/35 bg-transparent text-slate-100 hover:bg-white/10"
+          }`}
           onClick={() => onPageChange(item)}
-          className="min-w-10"
+          aria-label={`Go to page ${item}`}
         >
           {item}
-        </Button>
+        </button>
       ))}
-      <Button
-        variant="outline"
-        size="icon"
+      <button
+        type="button"
+        className="inline-flex size-8 items-center justify-center rounded border border-[#7fc7f6] bg-[#6aaee0] text-white transition-colors hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40"
         onClick={() => onPageChange(Math.min(totalPages, page + 1))}
         disabled={page >= totalPages}
+        aria-label="Next page"
       >
         <ChevronRight className="size-4" />
-      </Button>
+      </button>
     </div>
   );
 }

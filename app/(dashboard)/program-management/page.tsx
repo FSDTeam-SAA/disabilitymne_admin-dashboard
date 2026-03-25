@@ -10,6 +10,8 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { PageTitle } from "@/components/shared/page-title";
 import { Pagination } from "@/components/shared/pagination";
 import { TableSkeleton } from "@/components/shared/table-skeleton";
+import { ProgramFormActions } from "./_components/program-form-actions";
+import { ProgramUserTypeFields } from "./_components/program-user-type-fields";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -22,8 +24,8 @@ import {
   deleteProgram,
   getAdminExercises,
   getAdminPrograms,
+  getExercisePremiumUsers,
   getErrorMessage,
-  getProgramPremiumUsers,
   updateProgram,
   type Program,
 } from "@/lib/api";
@@ -136,8 +138,8 @@ export default function ProgramManagementPage() {
   });
 
   const premiumUsersQuery = useQuery({
-    queryKey: ["program-premium-users"],
-    queryFn: () => getProgramPremiumUsers(),
+    queryKey: ["exercise-premium-users"],
+    queryFn: () => getExercisePremiumUsers(),
   });
 
   const createMutation = useMutation({
@@ -284,16 +286,16 @@ export default function ProgramManagementPage() {
       for (const file of programImageFiles) {
         payload.append("programImages", file);
       }
-    } else if (selectedProgram && formData.programImages.length === 0) {
-      payload.append("programImages", "[]");
+    } else if (selectedProgram) {
+      payload.append("programImages", JSON.stringify(formData.programImages));
     }
 
     if (programThumbnailFiles.length > 0) {
       for (const file of programThumbnailFiles) {
         payload.append("programThumbnails", file);
       }
-    } else if (selectedProgram && formData.programThumbnails.length === 0) {
-      payload.append("programThumbnails", "[]");
+    } else if (selectedProgram) {
+      payload.append("programThumbnails", JSON.stringify(formData.programThumbnails));
     }
 
     if (selectedProgram) {
@@ -517,35 +519,19 @@ export default function ProgramManagementPage() {
                 <option value="advanced">Advanced</option>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label className="text-xs">User type</Label>
-              <Select
-                value={formData.userType}
-                className="h-10"
-                onChange={(event) => setFormData((prev) => ({ ...prev, userType: event.target.value }))}
-              >
-                <option value="normal_user">Normal user</option>
-                <option value="premium_user">Premium user</option>
-              </Select>
-            </div>
-
-            {formData.userType === "premium_user" ? (
-              <div className="space-y-2 md:col-span-2">
-                <Label className="text-xs">Assigned Premium User</Label>
-                <Select
-                  value={formData.assignedUser}
-                  onChange={(event) => setFormData((prev) => ({ ...prev, assignedUser: event.target.value }))}
-                  required
-                >
-                  <option value="">Select premium user</option>
-                  {(premiumUsersQuery.data || []).map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.firstName} ({user.email})
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            ) : null}
+            <ProgramUserTypeFields
+              userType={formData.userType}
+              assignedUser={formData.assignedUser}
+              premiumUsers={premiumUsersQuery.data || []}
+              onUserTypeChange={(value) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  userType: value,
+                  assignedUser: value === "premium_user" ? prev.assignedUser : "",
+                }))
+              }
+              onAssignedUserChange={(value) => setFormData((prev) => ({ ...prev, assignedUser: value }))}
+            />
 
             <div className="space-y-2 md:col-span-2">
               <Label className="text-xs">Program Description</Label>
@@ -718,27 +704,11 @@ export default function ProgramManagementPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 pt-1 md:grid-cols-2">
-            <button
-              type="button"
-              className="h-10 rounded border border-[#7cb6df66] bg-transparent text-xs font-semibold text-slate-100 transition-colors hover:bg-white/5"
-              onClick={() => setFormOpen(false)}
-            >
-              Cancel
-            </button>
-            <Button
-              type="submit"
-              disabled={createMutation.isPending || updateMutation.isPending}
-              className="h-10 rounded border border-[#9cd7ff6e] bg-[linear-gradient(180deg,#98d5f8_0%,#5d97c4_100%)] text-xs"
-            >
-              <Plus className="mr-1 size-3.5" />
-              {createMutation.isPending || updateMutation.isPending
-                ? "Saving..."
-                : selectedProgram
-                  ? "Save"
-                  : "Add New Program"}
-            </Button>
-          </div>
+          <ProgramFormActions
+            isPending={createMutation.isPending || updateMutation.isPending}
+            isEditMode={Boolean(selectedProgram)}
+            onCancel={() => setFormOpen(false)}
+          />
         </form>
       </Modal>
 
