@@ -3,6 +3,7 @@
 import { ArrowLeft, Eye, Plus, SquarePen, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -85,6 +86,7 @@ const getPlanMeta = (program: Program) => {
 
 export default function ProgramManagementPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
@@ -242,6 +244,12 @@ export default function ProgramManagementPage() {
     setSelectedProgram(program);
     setViewProgramId(program.id);
     setViewOpen(true);
+  };
+
+  const openCreateExerciseModal = () => {
+    closeViewModal();
+    setFormOpen(false);
+    router.push("/exercise-library?open=create");
   };
 
   const onAddExercise = (exerciseId: string) => {
@@ -729,6 +737,7 @@ export default function ProgramManagementPage() {
             isPending={createMutation.isPending || updateMutation.isPending}
             isEditMode={Boolean(selectedProgram)}
             onCancel={() => setFormOpen(false)}
+            onAddExercise={openCreateExerciseModal}
           />
         </form>
       </Modal>
@@ -837,10 +846,7 @@ export default function ProgramManagementPage() {
                 <button
                   type="button"
                   className="inline-flex h-8 items-center gap-2 rounded-md border border-[#8ec5eb6e] bg-[linear-gradient(180deg,#98d5f8_0%,#5d97c4_100%)] px-3 text-xs font-semibold text-white"
-                  onClick={() => {
-                    closeViewModal();
-                    onOpenEdit(activeViewProgram);
-                  }}
+                  onClick={openCreateExerciseModal}
                 >
                   <Plus className="size-3.5" />
                   Add New Exercise

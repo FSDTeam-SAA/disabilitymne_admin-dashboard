@@ -8,11 +8,22 @@ interface ProgramFormActionsProps {
   isPending: boolean;
   isEditMode: boolean;
   onCancel: () => void;
+  onAddExercise?: () => void;
 }
 
-export function ProgramFormActions({ isPending, isEditMode, onCancel }: ProgramFormActionsProps) {
+export function ProgramFormActions({ isPending, isEditMode, onCancel, onAddExercise }: ProgramFormActionsProps) {
   return (
-    <div className="grid grid-cols-1 gap-3 pt-1 md:grid-cols-2">
+    <div className={`grid grid-cols-1 gap-3 pt-1 ${onAddExercise ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
+      {onAddExercise ? (
+        <Button
+          type="button"
+          onClick={onAddExercise}
+          className="h-10 rounded border border-[#9cd7ff6e] bg-[linear-gradient(180deg,#98d5f8_0%,#5d97c4_100%)] text-xs"
+        >
+          <Plus className="mr-1 size-3.5" />
+          Add New Exercise
+        </Button>
+      ) : null}
       <button
         type="button"
         className="h-10 rounded border border-[#7cb6df66] bg-transparent text-xs font-semibold text-slate-100 transition-colors hover:bg-white/5"

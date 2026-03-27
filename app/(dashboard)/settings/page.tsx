@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { SquarePen } from "lucide-react";
+import { Eye, EyeOff, SquarePen } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -42,6 +42,11 @@ export default function SettingsPage() {
   const [isProfileEditing, setIsProfileEditing] = useState(false);
   const [profileEdits, setProfileEdits] = useState<Partial<ProfileForm>>({});
   const [passwordData, setPasswordData] = useState(initialPassword);
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    next: false,
+    confirm: false,
+  });
 
   const profileQuery = useQuery({
     queryKey: ["admin-settings-profile"],
@@ -268,35 +273,75 @@ export default function SettingsPage() {
             >
               <div className="space-y-2">
                 <Label>Current Password</Label>
-                <Input
-                  type="password"
-                  value={passwordData.currentPassword}
-                  onChange={(event) => setPasswordData((prev) => ({ ...prev, currentPassword: event.target.value }))}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    type={showPasswords.current ? "text" : "password"}
+                    value={passwordData.currentPassword}
+                    onChange={(event) => setPasswordData((prev) => ({ ...prev, currentPassword: event.target.value }))}
+                    className="pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 inline-flex w-10 items-center justify-center text-slate-300 transition-colors hover:text-white"
+                    onClick={() => setShowPasswords((prev) => ({ ...prev, current: !prev.current }))}
+                    aria-label={showPasswords.current ? "Hide current password" : "Show current password"}
+                  >
+                    {showPasswords.current ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>New Password</Label>
-                  <Input
-                    type="password"
-                    value={passwordData.newPassword}
-                    onChange={(event) => setPasswordData((prev) => ({ ...prev, newPassword: event.target.value }))}
-                    required
-                  />
+                  <div className="relative">
+                    <Input
+                      type={showPasswords.next ? "text" : "password"}
+                      value={passwordData.newPassword}
+                      onChange={(event) => setPasswordData((prev) => ({ ...prev, newPassword: event.target.value }))}
+                      className="pr-10"
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 inline-flex w-10 items-center justify-center text-slate-300 transition-colors hover:text-white"
+                      onClick={() => setShowPasswords((prev) => ({ ...prev, next: !prev.next }))}
+                      aria-label={showPasswords.next ? "Hide new password" : "Show new password"}
+                    >
+                      {showPasswords.next ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Confirm New Password</Label>
-                  <Input
-                    type="password"
-                    value={passwordData.confirmNewPassword}
-                    onChange={(event) => setPasswordData((prev) => ({ ...prev, confirmNewPassword: event.target.value }))}
-                    required
-                  />
+                  <div className="relative">
+                    <Input
+                      type={showPasswords.confirm ? "text" : "password"}
+                      value={passwordData.confirmNewPassword}
+                      onChange={(event) => setPasswordData((prev) => ({ ...prev, confirmNewPassword: event.target.value }))}
+                      className="pr-10"
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 inline-flex w-10 items-center justify-center text-slate-300 transition-colors hover:text-white"
+                      onClick={() => setShowPasswords((prev) => ({ ...prev, confirm: !prev.confirm }))}
+                      aria-label={showPasswords.confirm ? "Hide confirm password" : "Show confirm password"}
+                    >
+                      {showPasswords.confirm ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-3 pt-2 md:grid-cols-2">
-                <Button type="button" variant="outline" onClick={() => setPasswordData(initialPassword)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setPasswordData(initialPassword);
+                    setShowPasswords({ current: false, next: false, confirm: false });
+                  }}
+                >
                   Cancel
                 </Button>
                 <Button type="submit" disabled={passwordMutation.isPending}>

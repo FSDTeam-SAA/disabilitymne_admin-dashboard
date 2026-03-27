@@ -83,7 +83,7 @@ const cardConfigs = [
     iconColor: "bg-[#3dcc5f]",
   },
   {
-    label: "$11,00",
+    label: "Total Revenue",
     key: "totalRevenueDisplay",
     color: "from-[#4a3412] to-[#111c31]",
     icon: DollarSign,
@@ -92,16 +92,19 @@ const cardConfigs = [
   },
 ];
 
-const pieData = [
-  { name: "Premium", value: 30, color: "#3dcc5f", outerRadius: 105 },
-  { name: "Free Trial", value: 20, color: "#1890ff", outerRadius: 90 },
-  { name: "Six Month", value: 25, color: "#ff1d58", outerRadius: 90 },
-  { name: "Monthly", value: 25, color: "#ff9f31", outerRadius: 90 },
-];
+const subscriptionColorMap: Record<string, string> = {
+  premium_plan: "#3dcc5f",
+  free_trial: "#1890ff",
+  six_month_plan: "#ff1d58",
+  monthly_plan: "#ff9f31",
+};
+
+const RECENT_USERS_PAGE_SIZE = 5;
 
 export default function DashboardPage() {
   const queryClient = useQueryClient();
   const [statusUser, setStatusUser] = useState<AdminUser | null>(null);
+  const [recentUsersPage, setRecentUsersPage] = useState(1);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["dashboard-overview"],
@@ -138,6 +141,40 @@ export default function DashboardPage() {
   if (!data)
     return <EmptyState title="No data" description="Analytics unavailable." />;
 
+  const recentUsers = data.recentUsers ?? [];
+  const totalRecentUsers = recentUsers.length;
+  const totalRecentUserPages = Math.max(
+    1,
+    Math.ceil(totalRecentUsers / RECENT_USERS_PAGE_SIZE),
+  );
+  const activeRecentUsersPage = Math.min(recentUsersPage, totalRecentUserPages);
+  const recentUsersStartIndex =
+    (activeRecentUsersPage - 1) * RECENT_USERS_PAGE_SIZE;
+  const visibleRecentUsers = recentUsers.slice(
+    recentUsersStartIndex,
+    recentUsersStartIndex + RECENT_USERS_PAGE_SIZE,
+  );
+
+  const showingFrom = totalRecentUsers > 0 ? recentUsersStartIndex + 1 : 0;
+  const showingTo = recentUsersStartIndex + visibleRecentUsers.length;
+  const visiblePageNumbers =
+    totalRecentUserPages <= 3
+      ? Array.from({ length: totalRecentUserPages }, (_, index) => index + 1)
+      : (() => {
+          const start = Math.max(
+            1,
+            Math.min(activeRecentUsersPage - 1, totalRecentUserPages - 2),
+          );
+
+          return [start, start + 1, start + 2];
+        })();
+
+  const subscriptionPieData = data.subscriptionSurvey.map((item) => ({
+    name: item.label.replace(/\s*user$/i, ""),
+    value: item.percentage ?? 0,
+    color: subscriptionColorMap[item.key] ?? "#94a3b8",
+  }));
+
   const nextStatus =
     statusUser?.status === "suspended" ? "active" : "suspended";
 
@@ -163,12 +200,11 @@ export default function DashboardPage() {
             <div className="relative z-10">
               <p className="text-2xl font-bold text-white">
                 {config.isRevenue
-                  ? config.label
-                  : data.totals[config.key as keyof typeof data.totals] ||
-                    "220"}
+                  ? `$${data.totals.totalRevenueDisplay ?? "0.00"}`
+                  : (data.totals[config.key as keyof typeof data.totals] ?? 0)}
               </p>
               <p className="mt-1 text-xs font-medium text-slate-300">
-                {config.isRevenue ? "Total Revenue" : config.label}
+                {config.label}
               </p>
             </div>
             <div
@@ -232,7 +268,7 @@ export default function DashboardPage() {
                       return (
                         <div className="bg-white p-2 rounded shadow-lg text-center">
                           <p className="text-[10px] text-slate-500">
-                            {payload[0].payload.label} 2021
+                            {payload[0].payload.label}
                           </p>
                           <p className="text-xs font-bold text-[#1890ff]">
                             ${payload[0].value?.toLocaleString()}
@@ -270,7 +306,7 @@ export default function DashboardPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={pieData}
+                    data={subscriptionPieData}
                     dataKey="value"
                     innerRadius={65}
                     outerRadius={90}
@@ -278,7 +314,7 @@ export default function DashboardPage() {
                     endAngle={450}
                     stroke="none"
                   >
-                    {pieData.map((entry, index) => (
+                    {subscriptionPieData.map((entry, index) => (
                       <Cell
                         key={index}
                         fill={entry.color}
@@ -287,26 +323,10 @@ export default function DashboardPage() {
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
-
-              {/* Image-accurate absolute labels */}
-              <div className="absolute inset-0 pointer-events-none text-[10px] font-bold">
-                <span className="absolute top-[10%] right-[15%] text-[#3dcc5f] border-b border-[#3dcc5f] pr-4">
-                  30%
-                </span>
-                <span className="absolute top-[15%] left-[18%] text-[#ff9f31] border-b border-[#ff9f31] pl-4">
-                  25%
-                </span>
-                <span className="absolute bottom-[35%] left-[20%] text-[#1890ff] border-b border-[#1890ff] pl-4">
-                  20%
-                </span>
-                <span className="absolute bottom-[30%] right-[22%] text-[#ff1d58] border-b border-[#ff1d58] pr-4">
-                  25%
-                </span>
-              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-y-2 pb-2">
-              {pieData.map((item, i) => (
+              {subscriptionPieData.map((item, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <div
                     className="size-3 rounded-full"
@@ -357,7 +377,7 @@ export default function DashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.recentUsers.map((user) => (
+                {visibleRecentUsers.map((user) => (
                   <TableRow
                     key={user.id}
                     className="border-white/5 hover:bg-white/5 transition-colors"
@@ -418,37 +438,61 @@ export default function DashboardPage() {
           </div>
 
           <div className="mt-4 flex items-center justify-between text-[10px] text-slate-500">
-            <span>Showing 1 to {data.recentUsers.length} of 10results</span>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                className="size-7 bg-transparent border-white/10 text-white hover:bg-white/5"
-              >
-                <ChevronLeft className="size-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="size-7 bg-white text-black font-bold border-none"
-              >
-                1
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="size-7 bg-transparent border-white/10 text-white hover:bg-white/5"
-              >
-                2
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="size-7 bg-[#1890ff] border-none text-white hover:bg-[#1890ff]/80"
-              >
-                <ChevronRight className="size-4" />
-              </Button>
-            </div>
+            <span>
+              Showing {showingFrom} to {showingTo} of {totalRecentUsers} results
+            </span>
+            {totalRecentUserPages > 1 ? (
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  disabled={activeRecentUsersPage <= 1}
+                  onClick={() =>
+                    setRecentUsersPage(Math.max(1, activeRecentUsersPage - 1))
+                  }
+                  className="size-7 bg-transparent border-white/10 text-white hover:bg-white/5 disabled:opacity-40 disabled:hover:bg-transparent"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+
+                {visiblePageNumbers.map((pageNumber) => (
+                  <Button
+                    key={pageNumber}
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setRecentUsersPage(pageNumber)}
+                    className={cn(
+                      "size-7 border-white/10",
+                      pageNumber === activeRecentUsersPage
+                        ? "bg-white text-black font-bold border-none hover:bg-white/90"
+                        : "bg-transparent text-white hover:bg-white/5",
+                    )}
+                    aria-label={`Go to page ${pageNumber}`}
+                  >
+                    {pageNumber}
+                  </Button>
+                ))}
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  disabled={activeRecentUsersPage >= totalRecentUserPages}
+                  onClick={() =>
+                    setRecentUsersPage(
+                      Math.min(totalRecentUserPages, activeRecentUsersPage + 1),
+                    )
+                  }
+                  className="size-7 bg-[#1890ff] border-none text-white hover:bg-[#1890ff]/80 disabled:opacity-40"
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
+            ) : null}
           </div>
         </CardContent>
       </Card>

@@ -1,8 +1,9 @@
 "use client";
 
 import { ChevronDown, ChevronLeft, ChevronRight, Eye, Plus, SquarePen, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -62,14 +63,17 @@ const getPlanMeta = (exercise: Exercise) => {
   };
 };
 
-export default function ExerciseLibraryPage() {
+function ExerciseLibraryContent() {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const [page, setPage] = useState(1);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
-  const [formOpen, setFormOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(() => searchParams.get("open") === "create");
   const [formData, setFormData] = useState(defaultForm);
   const [exerciseImageFile, setExerciseImageFile] = useState<File | null>(null);
   const [muscleImageFile, setMuscleImageFile] = useState<File | null>(null);
@@ -83,6 +87,22 @@ export default function ExerciseLibraryPage() {
     setExerciseImageFile(null);
     setMuscleImageFile(null);
     setDemoVideoFile(null);
+  };
+
+  const clearOpenCreateParam = () => {
+    if (searchParams.get("open") !== "create") return;
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("open");
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+  };
+
+  const closeFormModal = () => {
+    setFormOpen(false);
+    clearOpenCreateParam();
+    setSelectedExercise(null);
+    resetFormState();
   };
 
   const exercisesQuery = useQuery({
@@ -100,6 +120,7 @@ export default function ExerciseLibraryPage() {
     onSuccess: () => {
       toast.success("Exercise created.");
       setFormOpen(false);
+      clearOpenCreateParam();
       resetFormState();
       queryClient.invalidateQueries({ queryKey: ["admin-exercises"] });
     },
@@ -112,6 +133,7 @@ export default function ExerciseLibraryPage() {
     onSuccess: () => {
       toast.success("Exercise updated.");
       setFormOpen(false);
+      clearOpenCreateParam();
       setSelectedExercise(null);
       resetFormState();
       queryClient.invalidateQueries({ queryKey: ["admin-exercises"] });
@@ -419,12 +441,8 @@ export default function ExerciseLibraryPage() {
       </Card>
 
       <Modal
-        open={formOpen}
-        onClose={() => {
-          setFormOpen(false);
-          setSelectedExercise(null);
-          resetFormState();
-        }}
+        open={formOpen || searchParams.get("open") === "create"}
+        onClose={closeFormModal}
         title={selectedExercise ? "Edit Exercise" : "Add New Exercise"}
       >
         <form className="space-y-4" onSubmit={onSubmitForm}>
@@ -606,7 +624,7 @@ export default function ExerciseLibraryPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-3 pt-2 md:grid-cols-2">
-            <Button type="button" variant="outline" onClick={() => setFormOpen(false)}>
+            <Button type="button" variant="outline" onClick={closeFormModal}>
               Cancel
             </Button>
             <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
@@ -663,5 +681,19 @@ export default function ExerciseLibraryPage() {
         loading={deleteMutation.isPending}
       />
     </div>
+  );
+}
+
+export default function ExerciseLibraryPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-5">
+          <TableSkeleton rows={10} />
+        </div>
+      }
+    >
+      <ExerciseLibraryContent />
+    </Suspense>
   );
 }
