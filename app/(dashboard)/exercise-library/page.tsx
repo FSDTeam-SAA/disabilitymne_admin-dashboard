@@ -144,7 +144,7 @@ function ExerciseLibraryContent() {
   const deleteMutation = useMutation({
     mutationFn: deleteExercise,
     onSuccess: () => {
-      toast.success("Exercise archived.");
+      toast.success("Exercise deleted.");
       setDeleteOpen(false);
       setSelectedExercise(null);
       queryClient.invalidateQueries({ queryKey: ["admin-exercises"] });

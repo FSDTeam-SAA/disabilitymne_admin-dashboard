@@ -103,7 +103,7 @@ export default function RecipesManagementPage() {
   const deleteMutation = useMutation({
     mutationFn: deleteRecipe,
     onSuccess: () => {
-      toast.success("Recipe archived.");
+      toast.success("Recipe deleted.");
       setDeleteOpen(false);
       setSelectedRecipe(null);
       queryClient.invalidateQueries({ queryKey: ["admin-recipes"] });

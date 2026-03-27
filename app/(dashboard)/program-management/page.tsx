@@ -179,7 +179,7 @@ export default function ProgramManagementPage() {
   const deleteMutation = useMutation({
     mutationFn: deleteProgram,
     onSuccess: () => {
-      toast.success("Program archived.");
+      toast.success("Program deleted.");
       setDeleteOpen(false);
       setSelectedProgram(null);
       queryClient.invalidateQueries({ queryKey: ["admin-programs"] });
