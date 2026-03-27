@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "quill/dist/quill.snow.css";
 
 @theme inline {
   --font-sans: "SF Pro Text", "SF Pro Display", "SF Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -39,4 +40,68 @@ a {
 
 ::-webkit-scrollbar-track {
   background-color: rgba(255, 255, 255, 0.05);
+}
+
+.recipe-quill .ql-toolbar.ql-snow {
+  border: 1px solid rgba(126, 185, 230, 0.55);
+  border-bottom: 0;
+  border-radius: 0.5rem 0.5rem 0 0;
+  background: rgba(14, 36, 63, 0.95);
+}
+
+.recipe-quill .ql-container.ql-snow {
+  border: 1px solid rgba(126, 185, 230, 0.55);
+  border-radius: 0 0 0.5rem 0.5rem;
+  background: rgba(10, 30, 54, 0.95);
+  color: #e6f1ff;
+  min-height: 180px;
+}
+
+.recipe-quill .ql-editor {
+  min-height: 180px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: #e6f1ff;
+}
+
+.recipe-quill .ql-editor.ql-blank::before {
+  color: rgba(214, 232, 252, 0.55);
+  font-style: normal;
+}
+
+.recipe-quill .ql-snow .ql-picker-label {
+  color: rgba(222, 240, 255, 0.92);
+}
+
+.recipe-quill .ql-snow .ql-picker-options {
+  background: #123156;
+  border: 1px solid rgba(126, 185, 230, 0.7);
+  color: #e6f1ff;
+}
+
+.recipe-quill .ql-snow .ql-picker-item {
+  color: #d8ebff;
+}
+
+.recipe-quill .ql-snow .ql-picker-item:hover,
+.recipe-quill .ql-snow .ql-picker-item.ql-selected {
+  color: #ffffff;
+  background: rgba(127, 183, 228, 0.16);
+}
+
+.recipe-quill .ql-snow .ql-picker.ql-expanded .ql-picker-label,
+.recipe-quill .ql-snow .ql-picker.ql-expanded .ql-picker-options {
+  border-color: rgba(126, 185, 230, 0.75);
+}
+
+.recipe-quill .ql-snow .ql-stroke {
+  stroke: rgba(222, 240, 255, 0.9);
+}
+
+.recipe-quill .ql-snow .ql-fill {
+  fill: rgba(222, 240, 255, 0.9);
+}
+
+.recipe-quill .ql-snow .ql-picker {
+  color: rgba(222, 240, 255, 0.9);
 }

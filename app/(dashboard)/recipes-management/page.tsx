@@ -11,12 +11,7 @@ import { PageTitle } from "@/components/shared/page-title";
 import { TableSkeleton } from "@/components/shared/table-skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Modal } from "@/components/ui/modal";
-import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import { useFilePreview } from "@/hooks/use-file-preview";
 import {
   createRecipe,
@@ -28,14 +23,18 @@ import {
   type Recipe,
 } from "@/lib/api";
 
-const defaultForm = {
+import { RecipeFormDialog, type RecipeFormState } from "./_components/recipe-form-dialog";
+import { RecipeViewDialog } from "./_components/recipe-view-dialog";
+import { toEditorValue } from "./_components/how-to-prepare-editor";
+
+const defaultForm: RecipeFormState = {
   recipeName: "",
   durationMinutes: "10",
   recipeType: "breakfast",
   userType: "normal_user",
   assignedUser: "",
   howToPrepare: "",
-  ingredients: "",
+  ingredients: [],
   recipeImage: "",
   caloriesKcal: "420",
   proteinG: "28",
@@ -52,12 +51,16 @@ export default function RecipesManagementPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
-  const [formData, setFormData] = useState(defaultForm);
+  const [formData, setFormData] = useState<RecipeFormState>(defaultForm);
+  const [howToPrepareEditor, setHowToPrepareEditor] = useState("");
+  const [ingredientInput, setIngredientInput] = useState("");
   const [recipeImageFile, setRecipeImageFile] = useState<File | null>(null);
   const recipeImagePreview = useFilePreview(recipeImageFile);
 
   const resetFormState = () => {
     setFormData(defaultForm);
+    setHowToPrepareEditor("");
+    setIngredientInput("");
     setRecipeImageFile(null);
   };
 
@@ -127,6 +130,8 @@ export default function RecipesManagementPage() {
   const onOpenEdit = (recipe: Recipe) => {
     setSelectedRecipe(recipe);
     setRecipeImageFile(null);
+    setHowToPrepareEditor(toEditorValue(recipe.howToPrepare || ""));
+    setIngredientInput("");
     setFormData({
       recipeName: recipe.recipeName || "",
       durationMinutes: String(recipe.durationMinutes || 10),
@@ -134,7 +139,7 @@ export default function RecipesManagementPage() {
       userType: recipe.userType || "normal_user",
       assignedUser: recipe.assignedUser?.id || "",
       howToPrepare: recipe.howToPrepare || "",
-      ingredients: (recipe.ingredients || []).join(", "),
+      ingredients: recipe.ingredients || [],
       recipeImage: recipe.recipeImage || "",
       caloriesKcal: String(recipe.caloriesKcal || 0),
       proteinG: String(recipe.proteinG || 0),
@@ -145,6 +150,51 @@ export default function RecipesManagementPage() {
     setFormOpen(true);
   };
 
+  const addIngredients = (rawValue: string) => {
+    const parsed = rawValue
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    if (parsed.length === 0) {
+      return;
+    }
+
+    setFormData((prev) => {
+      const existing = new Set(prev.ingredients.map((item) => item.toLowerCase()));
+      const next = [...prev.ingredients];
+
+      for (const ingredient of parsed) {
+        const normalized = ingredient.toLowerCase();
+        if (existing.has(normalized)) {
+          continue;
+        }
+
+        existing.add(normalized);
+        next.push(ingredient);
+      }
+
+      return {
+        ...prev,
+        ingredients: next,
+      };
+    });
+    setIngredientInput("");
+  };
+
+  const removeIngredient = (ingredient: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      ingredients: prev.ingredients.filter((item) => item !== ingredient),
+    }));
+  };
+
+  const closeFormDialog = () => {
+    setFormOpen(false);
+    setSelectedRecipe(null);
+    resetFormState();
+  };
+
   const onSubmitForm = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -153,10 +203,15 @@ export default function RecipesManagementPage() {
       return;
     }
 
-    const ingredients = formData.ingredients
-      .split(",")
+    const ingredients = [...formData.ingredients, ...ingredientInput.split(",")]
       .map((item) => item.trim())
-      .filter(Boolean);
+      .filter(Boolean)
+      .filter((item, index, all) => all.findIndex((candidate) => candidate.toLowerCase() === item.toLowerCase()) === index);
+
+    if (ingredients.length === 0) {
+      toast.error("At least one ingredient is required.");
+      return;
+    }
 
     const payload = new FormData();
     payload.append("recipeName", formData.recipeName);
@@ -233,54 +288,54 @@ export default function RecipesManagementPage() {
                     const nutritionSummary = recipe.nutritionSummary || `${recipe.caloriesKcal}kcal, ${recipe.proteinG}gprotein, ${recipe.carbsG}gcarbs, ${recipe.fatG}gfat`;
 
                     return (
-                    <TableRow key={recipe.id} className="border-white/30 hover:bg-white/[0.03]">
-                      <TableCell className="py-3">
-                        {recipe.recipeImage ? (
-                          <img src={recipe.recipeImage} alt={recipe.recipeName} className="size-10 rounded-full object-cover" />
-                        ) : (
-                          <span className="text-slate-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="py-3 text-sm">{recipe.recipeName}</TableCell>
-                      <TableCell className="py-3 text-sm capitalize">{recipe.recipeType}</TableCell>
-                      <TableCell className="py-3 text-sm">{recipe.durationMinutes} minute</TableCell>
-                      <TableCell className="py-3 text-xs leading-4 text-slate-200">{nutritionSummary}</TableCell>
-                      <TableCell className="py-3">
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            className="inline-flex h-8 items-center gap-2 rounded-md border border-[#2f80cc] bg-[#102849] px-3 text-xs font-semibold text-[#63bfff] transition-colors hover:bg-[#16345c]"
-                            onClick={() => {
-                              setSelectedRecipe(recipe);
-                              setViewOpen(true);
-                            }}
-                            aria-label="View recipe details"
-                          >
-                            <Eye className="size-3.5" />
-                            View Details
-                          </button>
-                          <button
-                            type="button"
-                            className="inline-flex size-8 items-center justify-center rounded-full bg-[#22bf61] text-white transition-colors hover:bg-[#2cd46d]"
-                            onClick={() => onOpenEdit(recipe)}
-                            aria-label="Edit recipe"
-                          >
-                            <SquarePen className="size-4" />
-                          </button>
-                          <button
-                            type="button"
-                            className="inline-flex size-8 items-center justify-center rounded-full bg-[#ff2f5f] text-white transition-colors hover:bg-[#ff416f]"
-                            onClick={() => {
-                              setSelectedRecipe(recipe);
-                              setDeleteOpen(true);
-                            }}
-                            aria-label="Delete recipe"
-                          >
-                            <Trash2 className="size-4" />
-                          </button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                      <TableRow key={recipe.id} className="border-white/30 hover:bg-white/[0.03]">
+                        <TableCell className="py-3">
+                          {recipe.recipeImage ? (
+                            <img src={recipe.recipeImage} alt={recipe.recipeName} className="size-10 rounded-full object-cover" />
+                          ) : (
+                            <span className="text-slate-400">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="py-3 text-sm">{recipe.recipeName}</TableCell>
+                        <TableCell className="py-3 text-sm capitalize">{recipe.recipeType}</TableCell>
+                        <TableCell className="py-3 text-sm">{recipe.durationMinutes} minute</TableCell>
+                        <TableCell className="py-3 text-xs leading-4 text-slate-200">{nutritionSummary}</TableCell>
+                        <TableCell className="py-3">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              className="inline-flex h-8 items-center gap-2 rounded-md border border-[#2f80cc] bg-[#102849] px-3 text-xs font-semibold text-[#63bfff] transition-colors hover:bg-[#16345c]"
+                              onClick={() => {
+                                setSelectedRecipe(recipe);
+                                setViewOpen(true);
+                              }}
+                              aria-label="View recipe details"
+                            >
+                              <Eye className="size-3.5" />
+                              View Details
+                            </button>
+                            <button
+                              type="button"
+                              className="inline-flex size-8 items-center justify-center rounded-full bg-[#22bf61] text-white transition-colors hover:bg-[#2cd46d]"
+                              onClick={() => onOpenEdit(recipe)}
+                              aria-label="Edit recipe"
+                            >
+                              <SquarePen className="size-4" />
+                            </button>
+                            <button
+                              type="button"
+                              className="inline-flex size-8 items-center justify-center rounded-full bg-[#ff2f5f] text-white transition-colors hover:bg-[#ff416f]"
+                              onClick={() => {
+                                setSelectedRecipe(recipe);
+                                setDeleteOpen(true);
+                              }}
+                              aria-label="Delete recipe"
+                            >
+                              <Trash2 className="size-4" />
+                            </button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
                 </TableBody>
@@ -334,199 +389,30 @@ export default function RecipesManagementPage() {
         </CardContent>
       </Card>
 
-      <Modal
+      <RecipeFormDialog
         open={formOpen}
-        onClose={() => {
-          setFormOpen(false);
-          setSelectedRecipe(null);
-          resetFormState();
-        }}
-        title={selectedRecipe ? "Edit Recipe" : "Add New Recipes"}
-      >
-        <form className="space-y-4" onSubmit={onSubmitForm}>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Recipes Name</Label>
-              <Input
-                value={formData.recipeName}
-                onChange={(event) => setFormData((prev) => ({ ...prev, recipeName: event.target.value }))}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>User type</Label>
-              <Select
-                value={formData.userType}
-                onChange={(event) => setFormData((prev) => ({ ...prev, userType: event.target.value }))}
-              >
-                <option value="normal_user">Normal user</option>
-                <option value="premium_user">Premium user</option>
-              </Select>
-            </div>
-            {formData.userType === "premium_user" ? (
-              <div className="space-y-2 md:col-span-2">
-                <Label>Assigned Premium User</Label>
-                <Select
-                  value={formData.assignedUser}
-                  onChange={(event) => setFormData((prev) => ({ ...prev, assignedUser: event.target.value }))}
-                  required
-                >
-                  <option value="">Select premium user</option>
-                  {(premiumUsersQuery.data || []).map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.firstName} ({user.email})
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            ) : null}
-            <div className="space-y-2">
-              <Label>Recipes Duration (Minutes)</Label>
-              <Input
-                type="number"
-                min={1}
-                value={formData.durationMinutes}
-                onChange={(event) => setFormData((prev) => ({ ...prev, durationMinutes: event.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Recipes Type</Label>
-              <Select
-                value={formData.recipeType}
-                onChange={(event) => setFormData((prev) => ({ ...prev, recipeType: event.target.value }))}
-              >
-                <option value="breakfast">Breakfast</option>
-                <option value="lunch">Lunch</option>
-                <option value="dinner">Dinner</option>
-                <option value="snack">Snack</option>
-                <option value="meal">Meal</option>
-                <option value="other">Other</option>
-              </Select>
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>How to prepare a meal</Label>
-              <Textarea
-                value={formData.howToPrepare}
-                onChange={(event) => setFormData((prev) => ({ ...prev, howToPrepare: event.target.value }))}
-              />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>Ingredients (comma separated)</Label>
-              <Input
-                value={formData.ingredients}
-                onChange={(event) => setFormData((prev) => ({ ...prev, ingredients: event.target.value }))}
-                required
-              />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>Recipe Image</Label>
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={(event) => setRecipeImageFile(event.target.files?.[0] || null)}
-                required={!selectedRecipe}
-              />
-              {recipeImagePreview || formData.recipeImage ? (
-                <img
-                  src={recipeImagePreview || formData.recipeImage}
-                  alt="Recipe preview"
-                  className="h-40 w-full rounded-lg object-cover"
-                />
-              ) : null}
-            </div>
-            <div className="space-y-2">
-              <Label>Calories (kcal)</Label>
-              <Input
-                type="number"
-                min={0}
-                value={formData.caloriesKcal}
-                onChange={(event) => setFormData((prev) => ({ ...prev, caloriesKcal: event.target.value }))}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Protein (g)</Label>
-              <Input
-                type="number"
-                min={0}
-                value={formData.proteinG}
-                onChange={(event) => setFormData((prev) => ({ ...prev, proteinG: event.target.value }))}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Carbs (g)</Label>
-              <Input
-                type="number"
-                min={0}
-                value={formData.carbsG}
-                onChange={(event) => setFormData((prev) => ({ ...prev, carbsG: event.target.value }))}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Fat (g)</Label>
-              <Input
-                type="number"
-                min={0}
-                value={formData.fatG}
-                onChange={(event) => setFormData((prev) => ({ ...prev, fatG: event.target.value }))}
-                required
-              />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>Status</Label>
-              <Select
-                value={formData.status}
-                onChange={(event) => setFormData((prev) => ({ ...prev, status: event.target.value }))}
-              >
-                <option value="published">Published</option>
-                <option value="draft">Draft</option>
-                <option value="archived">Archived</option>
-              </Select>
-            </div>
-          </div>
+        selectedRecipe={selectedRecipe}
+        formData={formData}
+        ingredientInput={ingredientInput}
+        howToPrepareEditor={howToPrepareEditor}
+        premiumUsers={premiumUsersQuery.data || []}
+        recipeImagePreview={recipeImagePreview}
+        isSaving={createMutation.isPending || updateMutation.isPending}
+        onClose={closeFormDialog}
+        onSubmit={onSubmitForm}
+        setFormData={setFormData}
+        setIngredientInput={setIngredientInput}
+        setRecipeImageFile={setRecipeImageFile}
+        addIngredients={addIngredients}
+        removeIngredient={removeIngredient}
+        setHowToPrepareEditor={setHowToPrepareEditor}
+      />
 
-          <div className="grid grid-cols-1 gap-3 pt-2 md:grid-cols-2">
-            <Button type="button" variant="outline" onClick={() => setFormOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-              {createMutation.isPending || updateMutation.isPending
-                ? "Saving..."
-                : selectedRecipe
-                  ? "Save"
-                  : "Add Plan"}
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      <Modal open={viewOpen} onClose={() => setViewOpen(false)} title={selectedRecipe?.recipeName || "Recipe details"}>
-        {selectedRecipe ? (
-          <div className="space-y-4 text-slate-100">
-            {selectedRecipe.recipeImage ? (
-              <img src={selectedRecipe.recipeImage} alt={selectedRecipe.recipeName} className="h-56 w-full rounded-xl object-cover" />
-            ) : null}
-            <p className="text-sm text-slate-300">{selectedRecipe.recipeType} | {selectedRecipe.durationMinutes} minutes</p>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              <div className="rounded-lg border border-blue-300/30 p-3 text-center">{selectedRecipe.caloriesKcal} kcal</div>
-              <div className="rounded-lg border border-blue-300/30 p-3 text-center">{selectedRecipe.proteinG}g protein</div>
-              <div className="rounded-lg border border-blue-300/30 p-3 text-center">{selectedRecipe.carbsG}g carbs</div>
-              <div className="rounded-lg border border-blue-300/30 p-3 text-center">{selectedRecipe.fatG}g fat</div>
-            </div>
-            <div>
-              <p className="mb-2 font-semibold text-white">Ingredients</p>
-              <ul className="list-disc space-y-1 pl-5 text-sm text-slate-200">
-                {(selectedRecipe.ingredients || []).map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-            <p className="text-sm text-slate-300">{selectedRecipe.howToPrepare || "No preparation guide"}</p>
-          </div>
-        ) : null}
-      </Modal>
+      <RecipeViewDialog
+        open={viewOpen}
+        onClose={() => setViewOpen(false)}
+        recipe={selectedRecipe}
+      />
 
       <ConfirmDialog
         open={deleteOpen}
