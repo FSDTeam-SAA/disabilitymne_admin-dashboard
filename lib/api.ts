@@ -22,10 +22,12 @@ export type AdminUser = {
   phone: string;
   createdAt: string;
   subscription: string;
-  selectedPlan: string;
+  selectedPlan: string | null;
   mobilityType: string;
   status: "active" | "deactivated" | "suspended";
   isActive: boolean;
+  isSponsored: boolean;
+  sponsorshipNote: string;
 };
 
 export type DashboardOverview = {
@@ -386,9 +388,23 @@ export async function getAdminUsers(params: {
   search?: string;
   status?: string;
   subscription?: string;
+  isSponsored?: boolean;
 }) {
   const response = await api.get<ApiEnvelope<AdminUser[]>>("/admin/users", { params });
   return unwrapPaginated(response);
+}
+
+export async function createAdminUser(payload: {
+  firstName: string;
+  lastName?: string;
+  email: string;
+  phone?: string;
+  temporaryPassword: string;
+  sponsorshipNote?: string;
+  planKey: string;
+}) {
+  const response = await api.post<ApiEnvelope<AdminUser>>("/admin/users", payload);
+  return unwrap(response);
 }
 
 export async function updateAdminUserStatus(userId: string, accountStatus: "active" | "deactivated" | "suspended") {

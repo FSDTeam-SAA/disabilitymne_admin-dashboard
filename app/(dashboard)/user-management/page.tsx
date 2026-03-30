@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, ChevronLeft, ChevronRight } from "lucide-react";
+import { Ban, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -9,10 +9,23 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageTitle } from "@/components/shared/page-title";
 import { TableSkeleton } from "@/components/shared/table-skeleton";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getAdminUsers, getErrorMessage, updateAdminUserStatus, type AdminUser } from "@/lib/api";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  createAdminUser,
+  getAdminUsers,
+  getErrorMessage,
+  getSubscriptionPlans,
+  updateAdminUserStatus,
+  type AdminUser,
+  type SubscriptionPlan,
+} from "@/lib/api";
 import { cn, formatDate } from "@/lib/utils";
 
 const toLabel = (value: string) =>
@@ -97,6 +110,30 @@ const getStatusMeta = (value: string) => {
   };
 };
 
+const getSponsoredMeta = (isSponsored: boolean) => {
+  if (isSponsored) {
+    return {
+      label: "Sponsored",
+      className: "border border-[#45cc7c]/80 bg-[#0a5034]/80 text-[#5fe28f]",
+    };
+  }
+
+  return {
+    label: "Standard",
+    className: "border border-white/25 bg-white/10 text-slate-200",
+  };
+};
+
+const defaultSponsoredForm = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
+  temporaryPassword: "",
+  sponsorshipNote: "",
+  planKey: "monthly",
+};
+
 export default function UserManagementPage() {
   const queryClient = useQueryClient();
 
@@ -104,11 +141,23 @@ export default function UserManagementPage() {
   const [status, setStatus] = useState("");
   const [statusOpen, setStatusOpen] = useState(false);
   const [statusUser, setStatusUser] = useState<AdminUser | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [sponsoredForm, setSponsoredForm] = useState(defaultSponsoredForm);
 
   const query = useQuery({
     queryKey: ["admin-users", page, status],
     queryFn: () => getAdminUsers({ page, limit: 10, status: status || undefined }),
   });
+
+  const plansQuery = useQuery({
+    queryKey: ["subscription-plans", "active"],
+    queryFn: () => getSubscriptionPlans(false),
+  });
+
+  const activePlans = useMemo<SubscriptionPlan[]>(
+    () => (plansQuery.data || []).filter((plan) => plan.isActive),
+    [plansQuery.data]
+  );
 
   const changeStatusMutation = useMutation({
     mutationFn: ({ userId, accountStatus }: { userId: string; accountStatus: "active" | "deactivated" | "suspended" }) =>
@@ -117,6 +166,20 @@ export default function UserManagementPage() {
       toast.success("User status updated.");
       setStatusOpen(false);
       setStatusUser(null);
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-overview"] });
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error));
+    },
+  });
+
+  const createSponsoredMutation = useMutation({
+    mutationFn: createAdminUser,
+    onSuccess: () => {
+      toast.success("Sponsored user created.");
+      setCreateOpen(false);
+      setSponsoredForm(defaultSponsoredForm);
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-overview"] });
     },
@@ -144,13 +207,42 @@ export default function UserManagementPage() {
       ? "You want to block this user from the platform."
       : "You want to activate this user again.";
 
+  const resolvedSponsoredPlanKey = useMemo(() => {
+    if (activePlans.some((plan) => plan.key === sponsoredForm.planKey)) {
+      return sponsoredForm.planKey;
+    }
+    return activePlans[0]?.key || "";
+  }, [activePlans, sponsoredForm.planKey]);
+
+  const handleCreateSponsoredUser = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    createSponsoredMutation.mutate({
+      firstName: sponsoredForm.firstName.trim(),
+      lastName: sponsoredForm.lastName.trim() || undefined,
+      email: sponsoredForm.email.trim().toLowerCase(),
+      phone: sponsoredForm.phone.trim() || undefined,
+      temporaryPassword: sponsoredForm.temporaryPassword,
+      sponsorshipNote: sponsoredForm.sponsorshipNote.trim() || undefined,
+      planKey: resolvedSponsoredPlanKey,
+    });
+  };
+
   return (
     <div className="space-y-5">
       <PageTitle title="User Management" breadcrumb="Dashboard  >  User Management" />
 
       <Card className="overflow-hidden border-[#80b8df42]">
         <CardContent className="space-y-4 p-0">
-          <div className="flex items-center justify-end px-4 pt-4">
+          <div className="flex items-center justify-between gap-3 px-4 pt-4">
+            <Button
+              type="button"
+              className="h-9 bg-[#2e9bff] text-xs font-semibold text-white hover:bg-[#3aa4ff]"
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus className="mr-1.5 size-4" />
+              Add Sponsored User
+            </Button>
             <div className="flex items-center gap-2 text-xs text-slate-300">
               <span>Sort by</span>
               <Select
@@ -179,7 +271,7 @@ export default function UserManagementPage() {
             </div>
           ) : (
             <>
-              <Table className="min-w-[980px]">
+              <Table className="min-w-[1060px]">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="h-11 text-xs">User Name</TableHead>
@@ -187,6 +279,7 @@ export default function UserManagementPage() {
                     <TableHead className="h-11 text-xs">Phone</TableHead>
                     <TableHead className="h-11 text-xs">Date</TableHead>
                     <TableHead className="h-11 text-xs">Subscription</TableHead>
+                    <TableHead className="h-11 text-xs">Access</TableHead>
                     <TableHead className="h-11 text-xs">Mobility</TableHead>
                     <TableHead className="h-11 text-xs text-center">Status</TableHead>
                   </TableRow>
@@ -195,6 +288,7 @@ export default function UserManagementPage() {
                   {users.map((user) => {
                     const subscriptionMeta = getSubscriptionMeta(user.subscription || "");
                     const statusMeta = getStatusMeta(user.status || "");
+                    const sponsoredMeta = getSponsoredMeta(user.isSponsored);
 
                     return (
                       <TableRow key={user.id} className="border-white/30 hover:bg-white/[0.03]">
@@ -210,6 +304,17 @@ export default function UserManagementPage() {
                             )}
                           >
                             {subscriptionMeta.label}
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <span
+                            className={cn(
+                              "inline-flex min-w-[92px] items-center justify-center rounded-full px-3 py-[3px] text-[11px] font-semibold",
+                              sponsoredMeta.className
+                            )}
+                            title={user.sponsorshipNote || undefined}
+                          >
+                            {sponsoredMeta.label}
                           </span>
                         </TableCell>
                         <TableCell className="py-3 text-sm text-slate-200">{user.mobilityType || "-"}</TableCell>
@@ -289,6 +394,124 @@ export default function UserManagementPage() {
           )}
         </CardContent>
       </Card>
+
+      <Modal
+        open={createOpen}
+        onClose={() => {
+          setCreateOpen(false);
+          setSponsoredForm(defaultSponsoredForm);
+        }}
+        title="Create Sponsored User"
+      >
+        <form className="space-y-4" onSubmit={handleCreateSponsoredUser}>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>First Name</Label>
+              <Input
+                value={sponsoredForm.firstName}
+                onChange={(event) =>
+                  setSponsoredForm((prev) => ({ ...prev, firstName: event.target.value }))
+                }
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Last Name</Label>
+              <Input
+                value={sponsoredForm.lastName}
+                onChange={(event) =>
+                  setSponsoredForm((prev) => ({ ...prev, lastName: event.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={sponsoredForm.email}
+                onChange={(event) =>
+                  setSponsoredForm((prev) => ({ ...prev, email: event.target.value }))
+                }
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Phone</Label>
+              <Input
+                value={sponsoredForm.phone}
+                onChange={(event) =>
+                  setSponsoredForm((prev) => ({ ...prev, phone: event.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Temporary Password</Label>
+              <Input
+                type="password"
+                value={sponsoredForm.temporaryPassword}
+                onChange={(event) =>
+                  setSponsoredForm((prev) => ({ ...prev, temporaryPassword: event.target.value }))
+                }
+                minLength={8}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Active Plan</Label>
+              <Select
+                value={resolvedSponsoredPlanKey}
+                onChange={(event) =>
+                  setSponsoredForm((prev) => ({ ...prev, planKey: event.target.value }))
+                }
+                disabled={plansQuery.isLoading || activePlans.length === 0}
+                required
+              >
+                {activePlans.length > 0 ? (
+                  activePlans.map((plan) => (
+                    <option key={plan.key} value={plan.key}>
+                      {plan.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">No active plans</option>
+                )}
+              </Select>
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Sponsorship Note</Label>
+              <Textarea
+                value={sponsoredForm.sponsorshipNote}
+                onChange={(event) =>
+                  setSponsoredForm((prev) => ({ ...prev, sponsorshipNote: event.target.value }))
+                }
+                placeholder="Optional internal note for this sponsorship"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 pt-2 md:grid-cols-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setCreateOpen(false);
+                setSponsoredForm(defaultSponsoredForm);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={
+                createSponsoredMutation.isPending ||
+                plansQuery.isLoading ||
+                activePlans.length === 0
+              }
+            >
+              {createSponsoredMutation.isPending ? "Creating..." : "Create User"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       <ConfirmDialog
         open={statusOpen}
