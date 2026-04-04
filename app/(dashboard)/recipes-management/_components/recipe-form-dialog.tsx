@@ -234,8 +234,10 @@ export function RecipeFormDialog({
               <div className="space-y-2">
                 <Label>Calories (kcal)</Label>
                 <Input
-                  type="number"
-                  min={0}
+                  type="text"
+                  inputMode="decimal"
+                  pattern="^-?[0-9]+([.,][0-9]+)?$"
+                  placeholder="e.g. 420 or 420,5"
                   value={formData.caloriesKcal}
                   onChange={(event) => setFormData((prev) => ({ ...prev, caloriesKcal: event.target.value }))}
                   required
@@ -244,8 +246,10 @@ export function RecipeFormDialog({
               <div className="space-y-2">
                 <Label>Protein (g)</Label>
                 <Input
-                  type="number"
-                  min={0}
+                  type="text"
+                  inputMode="decimal"
+                  pattern="^-?[0-9]+([.,][0-9]+)?$"
+                  placeholder="e.g. 35.2 or 35,2"
                   value={formData.proteinG}
                   onChange={(event) => setFormData((prev) => ({ ...prev, proteinG: event.target.value }))}
                   required
@@ -254,8 +258,10 @@ export function RecipeFormDialog({
               <div className="space-y-2">
                 <Label>Carbs (g)</Label>
                 <Input
-                  type="number"
-                  min={0}
+                  type="text"
+                  inputMode="decimal"
+                  pattern="^-?[0-9]+([.,][0-9]+)?$"
+                  placeholder="e.g. 52.4 or 52,4"
                   value={formData.carbsG}
                   onChange={(event) => setFormData((prev) => ({ ...prev, carbsG: event.target.value }))}
                   required
@@ -264,12 +270,17 @@ export function RecipeFormDialog({
               <div className="space-y-2">
                 <Label>Fat (g)</Label>
                 <Input
-                  type="number"
-                  min={0}
+                  type="text"
+                  inputMode="decimal"
+                  pattern="^-?[0-9]+([.,][0-9]+)?$"
+                  placeholder="e.g. 8.7 or 8,7"
                   value={formData.fatG}
                   onChange={(event) => setFormData((prev) => ({ ...prev, fatG: event.target.value }))}
                   required
                 />
+              </div>
+              <div className="md:col-span-2">
+                <p className="text-xs text-slate-300">Nutrition values accept decimals with either `.` or `,`.</p>
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label>Status</Label>
