@@ -78,7 +78,10 @@ export default function RevenuePage() {
 
   const rows = useMemo(() => {
     return (usersQuery.data?.data || []).map((user) => {
-      const price = planMap.get(user.selectedPlan) ?? planPriceFallback[user.selectedPlan] ?? 0;
+      const selectedPlan = user.selectedPlan ?? "";
+      const price = selectedPlan
+        ? planMap.get(selectedPlan) ?? planPriceFallback[selectedPlan] ?? 0
+        : 0;
       return {
         ...user,
         amount: price,
