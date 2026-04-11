@@ -6,6 +6,7 @@ type LoginResponse = {
   success: boolean;
   message?: string;
   data?: {
+    token?: string;
     accessToken: string;
     refreshToken: string;
     user: {
@@ -54,13 +55,17 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 
     const response = await fetch(`${getApiBaseUrl()}/auth/refresh-token`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Refresh-Token": refreshToken,
+        Authorization: `Bearer ${refreshToken}`,
+      },
       body: JSON.stringify({ refreshToken }),
       cache: "no-store",
     });
 
     const payload = (await response.json()) as LoginResponse;
-    const nextAccessToken = payload?.data?.accessToken;
+    const nextAccessToken = payload?.data?.accessToken || payload?.data?.token;
 
     if (!response.ok || !nextAccessToken) {
       return { ...token, error: "RefreshAccessTokenError" };
@@ -194,4 +199,3 @@ export const authOptions: NextAuthOptions = {
     },
   },
 };
-
