@@ -15,6 +15,7 @@ import { ProgramFormActions } from "./_components/program-form-actions";
 import { ProgramUserTypeFields } from "./_components/program-user-type-fields";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
@@ -178,6 +179,8 @@ export default function ProgramManagementPage() {
   const [workoutDays, setWorkoutDays] = useState<WorkoutDayAssignment[]>([]);
   const [activePlannerDay, setActivePlannerDay] = useState<number | null>(null);
   const [plannerExercisePickerValue, setPlannerExercisePickerValue] = useState("");
+  const [exerciseSearchInput, setExerciseSearchInput] = useState("");
+  const [exerciseSearchTerm, setExerciseSearchTerm] = useState("");
   const [programImageFiles, setProgramImageFiles] = useState<File[]>([]);
   const [programThumbnailFiles, setProgramThumbnailFiles] = useState<File[]>([]);
 
@@ -210,9 +213,16 @@ export default function ProgramManagementPage() {
     setWorkoutDays([]);
     setActivePlannerDay(null);
     setPlannerExercisePickerValue("");
+    setExerciseSearchInput("");
+    setExerciseSearchTerm("");
     setProgramImageFiles([]);
     setProgramThumbnailFiles([]);
   };
+
+  useEffect(() => {
+    const handle = setTimeout(() => setExerciseSearchTerm(exerciseSearchInput.trim()), 300);
+    return () => clearTimeout(handle);
+  }, [exerciseSearchInput]);
 
   const programsQuery = useQuery({
     queryKey: ["admin-programs", page, status],
@@ -220,8 +230,8 @@ export default function ProgramManagementPage() {
   });
 
   const exercisesQuery = useQuery({
-    queryKey: ["admin-exercises-options"],
-    queryFn: () => getAdminExercises({ page: 1, limit: 100 }),
+    queryKey: ["admin-exercises-options", exerciseSearchTerm],
+    queryFn: () => getAdminExercises({ page: 1, limit: 100, search: exerciseSearchTerm || undefined }),
   });
 
   const premiumUsersQuery = useQuery({
@@ -918,6 +928,13 @@ export default function ProgramManagementPage() {
                     </span>
                   </div>
 
+                  <Input
+                    value={exerciseSearchInput}
+                    onChange={(event) => setExerciseSearchInput(event.target.value)}
+                    placeholder="Search the exercise library by name…"
+                    className="mb-2 h-10"
+                  />
+
                   <Select
                     value={plannerExercisePickerValue}
                     className="h-10"
@@ -934,6 +951,23 @@ export default function ProgramManagementPage() {
                       </option>
                     ))}
                   </Select>
+
+                  {exercisesQuery.isLoading ? (
+                    <p className="mt-1 text-[11px] text-slate-300/90">Loading exercises…</p>
+                  ) : exercisesQuery.isError ? (
+                    <p className="mt-1 text-[11px] text-red-300">{getErrorMessage(exercisesQuery.error)}</p>
+                  ) : exerciseOptions.length === 0 ? (
+                    <p className="mt-1 text-[11px] text-slate-300/90">
+                      {exerciseSearchTerm
+                        ? `No exercises match "${exerciseSearchTerm}".`
+                        : "No exercises found in the library yet."}
+                    </p>
+                  ) : !exerciseSearchTerm && (exercisesQuery.data?.meta?.total || 0) > exerciseOptions.length ? (
+                    <p className="mt-1 text-[11px] text-slate-300/90">
+                      Showing {exerciseOptions.length} of {exercisesQuery.data?.meta?.total} exercises — search by
+                      name to find the rest.
+                    </p>
+                  ) : null}
 
                   {activeDayExercises.length > 0 ? (
                     <ul className="mt-3 space-y-2">
