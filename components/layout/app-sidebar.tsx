@@ -49,14 +49,14 @@ export function AppSidebar({
 
   const sidebarContent = (
     <div className="flex h-full flex-col bg-[#010408] px-4 py-5 text-slate-100">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
+      <div className="mb-6 flex items-center justify-center gap-2">
+        <div className="">
           <Image
-            src="/logo.png"
+            src="/logoo.jpeg"
             alt="Logo"
             width={500}
             height={500}
-            className="w-[294px] h-[71px]"
+            className="w-[100px] h-[100px]"
           />
         </div>
         {mobile ? (

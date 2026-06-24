@@ -8,9 +8,12 @@ export const metadata: Metadata = {
   title: "Disability Fitness Center | Admin",
   description: "Admin dashboard for Disability Fitness Center",
   icons: {
-    icon: "/logo-icon.png",
-    shortcut: "/logo-icon.png",
-    apple: "/logo-icon.png",
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/apple-icon.png",
   },
 };
 
