@@ -1,7 +1,7 @@
 "use client";
 
-import { Ban, ChevronLeft, ChevronRight, Plus, ShieldCheck, ShieldOff } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Ban, ChevronLeft, ChevronRight, Plus, Search, ShieldCheck, ShieldOff } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
@@ -143,6 +143,8 @@ export default function UserManagementPage() {
 
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [statusOpen, setStatusOpen] = useState(false);
   const [statusUser, setStatusUser] = useState<AdminUser | null>(null);
   const [roleOpen, setRoleOpen] = useState(false);
@@ -150,9 +152,14 @@ export default function UserManagementPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [sponsoredForm, setSponsoredForm] = useState(defaultSponsoredForm);
 
+  useEffect(() => {
+    const handle = setTimeout(() => setSearchTerm(searchInput.trim()), 300);
+    return () => clearTimeout(handle);
+  }, [searchInput]);
+
   const query = useQuery({
-    queryKey: ["admin-users", page, status],
-    queryFn: () => getAdminUsers({ page, limit: 10, status: status || undefined }),
+    queryKey: ["admin-users", page, status, searchTerm],
+    queryFn: () => getAdminUsers({ page, limit: 10, status: status || undefined, search: searchTerm || undefined }),
   });
 
   const plansQuery = useQuery({
@@ -273,6 +280,18 @@ export default function UserManagementPage() {
               Add Sponsored User
             </Button>
             <div className="flex items-center gap-2 text-xs text-slate-300">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+                <Input
+                  value={searchInput}
+                  onChange={(event) => {
+                    setPage(1);
+                    setSearchInput(event.target.value);
+                  }}
+                  placeholder="Search by name, email, or phone…"
+                  className="h-8 w-56 rounded-full border-[#8ec5eb7a] bg-[#0e2444]/80 pl-8 text-xs"
+                />
+              </div>
               <span>Sort by</span>
               <Select
                 value={status}
@@ -296,7 +315,7 @@ export default function UserManagementPage() {
             </div>
           ) : users.length === 0 ? (
             <div className="px-4 pb-6">
-              <EmptyState title="No users found" description="Try a different status filter." />
+              <EmptyState title="No users found" description="Try a different search term or status filter." />
             </div>
           ) : (
             <>
