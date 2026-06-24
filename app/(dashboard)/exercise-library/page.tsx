@@ -169,11 +169,10 @@ function ExerciseLibraryContent() {
   const totalPages = exercisesQuery.data?.meta?.totalPages || 1;
   const pageNumbers = useMemo(() => {
     if (totalPages <= 1) return [];
+    if (totalPages <= 3) return Array.from({ length: totalPages }, (_, index) => index + 1);
 
-    return Array.from({ length: totalPages }, (_, index) => index + 1).slice(
-      Math.max(0, page - 2),
-      Math.min(totalPages, page + 1)
-    );
+    const start = Math.max(1, Math.min(page - 1, totalPages - 2));
+    return [start, start + 1, start + 2];
   }, [page, totalPages]);
 
   const onOpenCreate = () => {

@@ -11,10 +11,13 @@ interface PaginationProps {
 export function Pagination({ page, totalPages, onPageChange }: PaginationProps) {
   if (totalPages <= 1) return null;
 
-  const pages = Array.from({ length: totalPages }, (_, index) => index + 1).slice(
-    Math.max(0, page - 2),
-    Math.min(totalPages, page + 1)
-  );
+  const pages =
+    totalPages <= 3
+      ? Array.from({ length: totalPages }, (_, index) => index + 1)
+      : (() => {
+          const start = Math.max(1, Math.min(page - 1, totalPages - 2));
+          return [start, start + 1, start + 2];
+        })();
 
   return (
     <div className="mt-3 flex items-center justify-end gap-1">

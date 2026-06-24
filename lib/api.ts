@@ -28,6 +28,7 @@ export type AdminUser = {
   isActive: boolean;
   isSponsored: boolean;
   sponsorshipNote: string;
+  role: "user" | "admin";
 };
 
 export type DashboardOverview = {
@@ -409,6 +410,11 @@ export async function createAdminUser(payload: {
 
 export async function updateAdminUserStatus(userId: string, accountStatus: "active" | "deactivated" | "suspended") {
   const response = await api.patch<ApiEnvelope<AdminUser>>(`/admin/users/${userId}/status`, { accountStatus });
+  return unwrap(response);
+}
+
+export async function updateAdminUserRole(userId: string, role: "user" | "admin") {
+  const response = await api.patch<ApiEnvelope<AdminUser>>(`/admin/users/${userId}/role`, { role });
   return unwrap(response);
 }
 

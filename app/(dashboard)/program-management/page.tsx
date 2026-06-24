@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowLeft, ArrowUp, Eye, Plus, SquarePen, Trash2, Upload, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, ChevronsUpDown, Eye, Plus, SquarePen, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -15,9 +15,10 @@ import { ProgramFormActions } from "./_components/program-form-actions";
 import { ProgramUserTypeFields } from "./_components/program-user-type-fields";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
@@ -73,13 +74,9 @@ const normalizeWorkoutDays = (days: WorkoutDayAssignment[]) => {
   return (Array.isArray(days) ? days : [])
     .map((day) => ({
       dayIndex: Number(day.dayIndex),
-      exerciseIds: Array.from(
-        new Set(
-          (Array.isArray(day.exerciseIds) ? day.exerciseIds : [])
-            .map((id) => String(id).trim())
-            .filter(Boolean)
-        )
-      ),
+      exerciseIds: (Array.isArray(day.exerciseIds) ? day.exerciseIds : [])
+        .map((id) => String(id).trim())
+        .filter(Boolean),
     }))
     .filter((day) => Number.isInteger(day.dayIndex) && day.dayIndex >= 1 && day.dayIndex <= 7)
     .filter((day) => {
@@ -178,7 +175,7 @@ export default function ProgramManagementPage() {
   const [formData, setFormData] = useState(defaultForm);
   const [workoutDays, setWorkoutDays] = useState<WorkoutDayAssignment[]>([]);
   const [activePlannerDay, setActivePlannerDay] = useState<number | null>(null);
-  const [plannerExercisePickerValue, setPlannerExercisePickerValue] = useState("");
+  const [exercisePickerOpen, setExercisePickerOpen] = useState(false);
   const [exerciseSearchInput, setExerciseSearchInput] = useState("");
   const [exerciseSearchTerm, setExerciseSearchTerm] = useState("");
   const [programImageFiles, setProgramImageFiles] = useState<File[]>([]);
@@ -212,7 +209,7 @@ export default function ProgramManagementPage() {
     setFormData(defaultForm);
     setWorkoutDays([]);
     setActivePlannerDay(null);
-    setPlannerExercisePickerValue("");
+    setExercisePickerOpen(false);
     setExerciseSearchInput("");
     setExerciseSearchTerm("");
     setProgramImageFiles([]);
@@ -231,7 +228,7 @@ export default function ProgramManagementPage() {
 
   const exercisesQuery = useQuery({
     queryKey: ["admin-exercises-options", exerciseSearchTerm],
-    queryFn: () => getAdminExercises({ page: 1, limit: 100, search: exerciseSearchTerm || undefined }),
+    queryFn: () => getAdminExercises({ page: 1, limit: 2000, search: exerciseSearchTerm || undefined }),
   });
 
   const premiumUsersQuery = useQuery({
@@ -314,7 +311,7 @@ export default function ProgramManagementPage() {
     setProgramThumbnailFiles([]);
     setWorkoutDays(nextWorkoutDays);
     setActivePlannerDay(nextWorkoutDays[0]?.dayIndex || null);
-    setPlannerExercisePickerValue("");
+    setExercisePickerOpen(false);
     setFormData({
       programName: program.programName || "",
       durationMinutes: String(program.durationMinutes || 30),
@@ -359,7 +356,6 @@ export default function ProgramManagementPage() {
     }
 
     setActivePlannerDay(dayIndex);
-    setPlannerExercisePickerValue("");
   };
 
   const removeWorkoutPlannerDay = (dayIndex: number) => {
@@ -367,7 +363,6 @@ export default function ProgramManagementPage() {
     if (activePlannerDay === dayIndex) {
       setActivePlannerDay(null);
     }
-    setPlannerExercisePickerValue("");
   };
 
   const addExerciseToWorkoutDay = (dayIndex: number, exerciseId: string) => {
@@ -380,17 +375,15 @@ export default function ProgramManagementPage() {
             ? day
             : {
                 ...day,
-                exerciseIds: day.exerciseIds.includes(exerciseId)
-                  ? day.exerciseIds
-                  : [...day.exerciseIds, exerciseId],
+                exerciseIds: [...day.exerciseIds, exerciseId],
               }
         )
       )
     );
-    setPlannerExercisePickerValue("");
+    setExercisePickerOpen(false);
   };
 
-  const removeExerciseFromWorkoutDay = (dayIndex: number, exerciseId: string) => {
+  const removeExerciseFromWorkoutDay = (dayIndex: number, exerciseIndex: number) => {
     setWorkoutDays((prev) =>
       normalizeWorkoutDays(
         prev.map((day) =>
@@ -398,27 +391,24 @@ export default function ProgramManagementPage() {
             ? day
             : {
                 ...day,
-                exerciseIds: day.exerciseIds.filter((id) => id !== exerciseId),
+                exerciseIds: day.exerciseIds.filter((_, index) => index !== exerciseIndex),
               }
         )
       )
     );
   };
 
-  const moveExerciseInWorkoutDay = (dayIndex: number, exerciseId: string, direction: "up" | "down") => {
+  const moveExerciseInWorkoutDay = (dayIndex: number, exerciseIndex: number, direction: "up" | "down") => {
     setWorkoutDays((prev) =>
       normalizeWorkoutDays(
         prev.map((day) => {
           if (day.dayIndex !== dayIndex) return day;
 
-          const currentIndex = day.exerciseIds.findIndex((id) => id === exerciseId);
-          if (currentIndex < 0) return day;
-
-          const nextIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+          const nextIndex = direction === "up" ? exerciseIndex - 1 : exerciseIndex + 1;
           if (nextIndex < 0 || nextIndex >= day.exerciseIds.length) return day;
 
           const nextExerciseIds = [...day.exerciseIds];
-          const [item] = nextExerciseIds.splice(currentIndex, 1);
+          const [item] = nextExerciseIds.splice(exerciseIndex, 1);
           nextExerciseIds.splice(nextIndex, 0, item);
 
           return {
@@ -928,41 +918,53 @@ export default function ProgramManagementPage() {
                     </span>
                   </div>
 
-                  <Input
-                    value={exerciseSearchInput}
-                    onChange={(event) => setExerciseSearchInput(event.target.value)}
-                    placeholder="Search the exercise library by name…"
-                    className="mb-2 h-10"
-                  />
+                  <Popover open={exercisePickerOpen} onOpenChange={setExercisePickerOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex h-10 w-full items-center justify-between rounded-md border border-[#7cb6df66] bg-[#1b3457]/80 px-3 text-sm text-slate-300/90 transition-colors hover:bg-[#23456f]/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60"
+                      >
+                        <span>Add exercise to {getWorkoutDayLabel(activeWorkoutDay.dayIndex)}</span>
+                        <ChevronsUpDown className="size-4 shrink-0 text-slate-400" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent>
+                      <Command shouldFilter={false}>
+                        <CommandInput
+                          value={exerciseSearchInput}
+                          onValueChange={setExerciseSearchInput}
+                          placeholder="Search the exercise library…"
+                        />
+                        <CommandList>
+                          {exercisesQuery.isLoading ? (
+                            <CommandEmpty>Loading exercises…</CommandEmpty>
+                          ) : exercisesQuery.isError ? (
+                            <CommandEmpty className="text-red-300">{getErrorMessage(exercisesQuery.error)}</CommandEmpty>
+                          ) : exerciseOptions.length === 0 ? (
+                            <CommandEmpty>
+                              {exerciseSearchTerm
+                                ? `No exercises match "${exerciseSearchTerm}".`
+                                : "No exercises found in the library yet."}
+                            </CommandEmpty>
+                          ) : (
+                            <CommandGroup>
+                              {exerciseOptions.map((exercise) => (
+                                <CommandItem
+                                  key={exercise.id}
+                                  value={exercise.id}
+                                  onSelect={() => addExerciseToWorkoutDay(activeWorkoutDay.dayIndex, exercise.id)}
+                                >
+                                  {exercise.exerciseName}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          )}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
 
-                  <Select
-                    value={plannerExercisePickerValue}
-                    className="h-10"
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      setPlannerExercisePickerValue(value);
-                      addExerciseToWorkoutDay(activeWorkoutDay.dayIndex, value);
-                    }}
-                  >
-                    <option value="">Add exercise to {getWorkoutDayLabel(activeWorkoutDay.dayIndex)}</option>
-                    {exerciseOptions.map((exercise) => (
-                      <option key={exercise.id} value={exercise.id}>
-                        {exercise.exerciseName}
-                      </option>
-                    ))}
-                  </Select>
-
-                  {exercisesQuery.isLoading ? (
-                    <p className="mt-1 text-[11px] text-slate-300/90">Loading exercises…</p>
-                  ) : exercisesQuery.isError ? (
-                    <p className="mt-1 text-[11px] text-red-300">{getErrorMessage(exercisesQuery.error)}</p>
-                  ) : exerciseOptions.length === 0 ? (
-                    <p className="mt-1 text-[11px] text-slate-300/90">
-                      {exerciseSearchTerm
-                        ? `No exercises match "${exerciseSearchTerm}".`
-                        : "No exercises found in the library yet."}
-                    </p>
-                  ) : !exerciseSearchTerm && (exercisesQuery.data?.meta?.total || 0) > exerciseOptions.length ? (
+                  {!exerciseSearchTerm && (exercisesQuery.data?.meta?.total || 0) > exerciseOptions.length ? (
                     <p className="mt-1 text-[11px] text-slate-300/90">
                       Showing {exerciseOptions.length} of {exercisesQuery.data?.meta?.total} exercises — search by
                       name to find the rest.
@@ -973,7 +975,7 @@ export default function ProgramManagementPage() {
                     <ul className="mt-3 space-y-2">
                       {activeDayExercises.map((exercise, index) => (
                         <li
-                          key={exercise.id}
+                          key={`${exercise.id}-${index}`}
                           className="flex items-center justify-between gap-2 rounded-md border border-[#7cb6df44] bg-[#173456]/55 px-3 py-2 text-sm text-slate-100"
                         >
                           <div className="inline-flex items-center gap-2">
@@ -986,7 +988,7 @@ export default function ProgramManagementPage() {
                             <button
                               type="button"
                               className="inline-flex size-6 items-center justify-center rounded border border-[#7cb6df66] bg-[#102849] text-slate-200 transition-colors hover:bg-[#18406d] disabled:opacity-40"
-                              onClick={() => moveExerciseInWorkoutDay(activeWorkoutDay.dayIndex, exercise.id, "up")}
+                              onClick={() => moveExerciseInWorkoutDay(activeWorkoutDay.dayIndex, index, "up")}
                               disabled={index === 0}
                               aria-label="Move up"
                             >
@@ -995,7 +997,7 @@ export default function ProgramManagementPage() {
                             <button
                               type="button"
                               className="inline-flex size-6 items-center justify-center rounded border border-[#7cb6df66] bg-[#102849] text-slate-200 transition-colors hover:bg-[#18406d] disabled:opacity-40"
-                              onClick={() => moveExerciseInWorkoutDay(activeWorkoutDay.dayIndex, exercise.id, "down")}
+                              onClick={() => moveExerciseInWorkoutDay(activeWorkoutDay.dayIndex, index, "down")}
                               disabled={index === activeDayExercises.length - 1}
                               aria-label="Move down"
                             >
@@ -1004,7 +1006,7 @@ export default function ProgramManagementPage() {
                             <button
                               type="button"
                               className="inline-flex size-6 items-center justify-center rounded-full bg-[#ff2f5f] text-white transition-colors hover:bg-[#ff416f]"
-                              onClick={() => removeExerciseFromWorkoutDay(activeWorkoutDay.dayIndex, exercise.id)}
+                              onClick={() => removeExerciseFromWorkoutDay(activeWorkoutDay.dayIndex, index)}
                               aria-label="Remove exercise"
                             >
                               <X className="size-3.5" />
