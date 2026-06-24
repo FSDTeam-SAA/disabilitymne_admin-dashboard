@@ -28,6 +28,25 @@ a {
   text-decoration: none;
 }
 
+button:not(:disabled),
+[role="button"],
+a[href],
+label[for],
+select:not(:disabled),
+summary,
+input[type="button"]:not(:disabled),
+input[type="submit"]:not(:disabled),
+input[type="reset"]:not(:disabled),
+input[type="file"]:not(:disabled) {
+  cursor: pointer !important;
+}
+
+button:disabled,
+select:disabled,
+input:disabled {
+  cursor: not-allowed !important;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

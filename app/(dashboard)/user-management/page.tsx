@@ -357,7 +357,7 @@ export default function UserManagementPage() {
                               <button
                                 type="button"
                                 className={cn(
-                                  "inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                                  "inline-flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors",
                                   user.role === "admin"
                                     ? "border-[#ff9f31]/60 bg-[#5f3b15]/40 text-[#ff9f31] hover:bg-[#5f3b15]/70"
                                     : "border-[#2e9bff]/60 bg-[#163457]/60 text-[#2e9bff] hover:bg-[#163457]/90"
@@ -389,7 +389,7 @@ export default function UserManagementPage() {
                           {user.role !== "admin" ? (
                             <button
                               type="button"
-                              className="inline-flex size-8 items-center justify-center rounded-full bg-[#ff3d6f]/30 text-[#ff2f5f] transition-colors hover:bg-[#ff2f5f]/15"
+                              className="inline-flex size-8 cursor-pointer items-center justify-center rounded-full bg-[#ff3d6f]/30 text-[#ff2f5f] transition-colors hover:bg-[#ff2f5f]/15"
                               onClick={() => {
                                 setStatusUser(user);
                                 setStatusOpen(true);
