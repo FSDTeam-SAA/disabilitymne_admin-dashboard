@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, ChevronLeft, ChevronRight, Plus, Search, ShieldCheck, ShieldOff } from "lucide-react";
+import { Ban, ChevronLeft, ChevronRight, Plus, Search, ShieldCheck, ShieldOff, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
@@ -20,6 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import {
   createAdminUser,
+  deleteAdminUser,
   getAdminUsers,
   getErrorMessage,
   getSubscriptionPlans,
@@ -149,6 +150,8 @@ export default function UserManagementPage() {
   const [statusUser, setStatusUser] = useState<AdminUser | null>(null);
   const [roleOpen, setRoleOpen] = useState(false);
   const [roleUser, setRoleUser] = useState<AdminUser | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteUser, setDeleteUser] = useState<AdminUser | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [sponsoredForm, setSponsoredForm] = useState(defaultSponsoredForm);
 
@@ -193,6 +196,20 @@ export default function UserManagementPage() {
       toast.success("User role updated.");
       setRoleOpen(false);
       setRoleUser(null);
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-overview"] });
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error));
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: deleteAdminUser,
+    onSuccess: () => {
+      toast.success("User deleted permanently.");
+      setDeleteOpen(false);
+      setDeleteUser(null);
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-overview"] });
     },
@@ -406,17 +423,30 @@ export default function UserManagementPage() {
                             {statusMeta.label}
                           </span>
                           {user.role !== "admin" ? (
-                            <button
-                              type="button"
-                              className="inline-flex size-8 cursor-pointer items-center justify-center rounded-full bg-[#ff3d6f]/30 text-[#ff2f5f] transition-colors hover:bg-[#ff2f5f]/15"
-                              onClick={() => {
-                                setStatusUser(user);
-                                setStatusOpen(true);
-                              }}
-                              aria-label="Block user"
-                            >
-                              <Ban className="size-4" />
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                className="inline-flex size-8 cursor-pointer items-center justify-center rounded-full bg-[#ff3d6f]/30 text-[#ff2f5f] transition-colors hover:bg-[#ff2f5f]/15"
+                                onClick={() => {
+                                  setStatusUser(user);
+                                  setStatusOpen(true);
+                                }}
+                                aria-label="Block user"
+                              >
+                                <Ban className="size-4" />
+                              </button>
+                              <button
+                                type="button"
+                                className="inline-flex size-8 cursor-pointer items-center justify-center rounded-full bg-[#7f1d1d]/70 text-[#fecaca] transition-colors hover:bg-[#991b1b]"
+                                onClick={() => {
+                                  setDeleteUser(user);
+                                  setDeleteOpen(true);
+                                }}
+                                aria-label="Delete user permanently"
+                              >
+                                <Trash2 className="size-4" />
+                              </button>
+                            </>
                           ) : null}
                         </TableCell>
                       </TableRow>
@@ -628,6 +658,27 @@ export default function UserManagementPage() {
         description={roleDescription}
         confirmText={roleActionText}
         loading={roleOpen && changeRoleMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onClose={() => {
+          setDeleteOpen(false);
+          setDeleteUser(null);
+        }}
+        onConfirm={() => {
+          if (deleteUser) {
+            deleteUserMutation.mutate(deleteUser.id);
+          }
+        }}
+        title="Delete this user permanently?"
+        description={
+          deleteUser
+            ? `This will permanently delete ${deleteUser.name} from the system. This action cannot be undone.`
+            : "This will permanently delete this user from the system. This action cannot be undone."
+        }
+        confirmText="Delete Forever"
+        loading={deleteOpen && deleteUserMutation.isPending}
       />
     </div>
   );
