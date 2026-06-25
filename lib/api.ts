@@ -811,13 +811,30 @@ export async function getChatMessages(threadId: string, params: { page?: number;
   return unwrapPaginated(response);
 }
 
-export async function sendChatMessage(threadId: string, payload: { message: string }) {
-  const response = await api.post<ApiEnvelope<ChatMessage>>(`/chat/threads/${threadId}/messages`, payload);
+export async function sendChatMessage(threadId: string, payload: { message: string } | FormData) {
+  const response = await api.post<ApiEnvelope<ChatMessage>>(
+    `/chat/threads/${threadId}/messages`,
+    payload,
+    getMultipartConfig(payload)
+  );
   return unwrap(response);
 }
 
 export async function markChatThreadRead(threadId: string) {
   const response = await api.patch<ApiEnvelope<{ markedCount: number; readAt: string }>>(`/chat/threads/${threadId}/read`);
+  return unwrap(response);
+}
+
+export async function uploadChatAttachment(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("folder", "chat/attachments");
+
+  const endpoint = file.type.startsWith("video/") ? "/uploads/video" : "/uploads/image";
+  const response = await api.post<ApiEnvelope<{ url: string }>>(endpoint, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
   return unwrap(response);
 }
 

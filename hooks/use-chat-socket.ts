@@ -11,10 +11,17 @@ export type IncomingSocketEvent =
   | { type: "chat:thread:updated"; payload: unknown }
   | { type: "chat:thread:read"; payload: unknown };
 
+type SocketAck<T> = {
+  success?: boolean;
+  message?: string;
+  data?: T;
+};
+
 export function useChatSocket(activeThreadId?: string) {
   const { data: session } = useSession();
   const socketRef = useRef<Socket | null>(null);
   const [events, setEvents] = useState<IncomingSocketEvent[]>([]);
+  const [isConnected, setIsConnected] = useState(false);
 
   const socketUrl = useMemo(() => {
     const baseApiUrl = getApiBaseUrl();
@@ -29,6 +36,10 @@ export function useChatSocket(activeThreadId?: string) {
       transports: ["websocket"],
       auth: { token },
     });
+
+    socket.on("connect", () => setIsConnected(true));
+    socket.on("disconnect", () => setIsConnected(false));
+    socket.on("connect_error", () => setIsConnected(false));
 
     socket.on("chat:message:new", (payload) => {
       setEvents((prev) => [...prev.slice(-40), { type: "chat:message:new", payload }]);
@@ -47,6 +58,7 @@ export function useChatSocket(activeThreadId?: string) {
     return () => {
       socket.disconnect();
       socketRef.current = null;
+      setIsConnected(false);
     };
   }, [session?.accessToken, socketUrl]);
 
@@ -62,8 +74,37 @@ export function useChatSocket(activeThreadId?: string) {
 
   const clearEvents = () => setEvents([]);
 
+  const sendSocketMessage = <T,>(payload: {
+    threadId: string;
+    message?: string;
+    attachments?: Array<{ url: string; publicId?: string; mimetype?: string; size?: number }>;
+  }) =>
+    new Promise<T>((resolve, reject) => {
+      const socket = socketRef.current;
+      if (!socket?.connected) {
+        reject(new Error("Socket is not connected."));
+        return;
+      }
+
+      socket.timeout(15000).emit("chat:message:send", payload, (error: Error | null, ack?: SocketAck<T>) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        if (!ack?.success || !ack.data) {
+          reject(new Error(ack?.message || "Failed to send message."));
+          return;
+        }
+
+        resolve(ack.data);
+      });
+    });
+
   return {
     events,
     clearEvents,
+    isConnected,
+    sendSocketMessage,
   };
 }
