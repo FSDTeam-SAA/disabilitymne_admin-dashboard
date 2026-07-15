@@ -15,9 +15,11 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   getAdminSettingsProfile,
   getErrorMessage,
+  getMembershipSettings,
   updateAdminSettingsPassword,
   updateAdminSettingsProfile,
   updateAdminSettingsProfileImage,
+  updateMembershipSettings,
 } from "@/lib/api";
 
 type ProfileForm = {
@@ -38,10 +40,11 @@ const initialPassword = {
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const profileImageInputRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<"profile" | "password">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "password" | "membership">("profile");
   const [isProfileEditing, setIsProfileEditing] = useState(false);
   const [profileEdits, setProfileEdits] = useState<Partial<ProfileForm>>({});
   const [passwordData, setPasswordData] = useState(initialPassword);
+  const [maxPremiumUsersInput, setMaxPremiumUsersInput] = useState("");
   const [showPasswords, setShowPasswords] = useState({
     current: false,
     next: false,
@@ -51,6 +54,11 @@ export default function SettingsPage() {
   const profileQuery = useQuery({
     queryKey: ["admin-settings-profile"],
     queryFn: getAdminSettingsProfile,
+  });
+
+  const membershipQuery = useQuery({
+    queryKey: ["admin-membership-settings"],
+    queryFn: getMembershipSettings,
   });
 
   const profileFromApi = useMemo(
@@ -105,11 +113,26 @@ export default function SettingsPage() {
     onError: (error) => toast.error(getErrorMessage(error)),
   });
 
+  const membershipMutation = useMutation({
+    mutationFn: updateMembershipSettings,
+    onSuccess: (data) => {
+      toast.success("Membership capacity updated.");
+      setMaxPremiumUsersInput(String(data.maxPremiumUsers));
+      queryClient.invalidateQueries({ queryKey: ["admin-membership-settings"] });
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+
+  const membership = membershipQuery.data;
+  const membershipInputValue =
+    maxPremiumUsersInput ||
+    (membership?.maxPremiumUsers !== undefined ? String(membership.maxPremiumUsers) : "");
+
   return (
     <div className="space-y-5">
       <PageTitle title="Settings" breadcrumb="Dashboard  >  Settings" />
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <button
           type="button"
           onClick={() => setActiveTab("profile")}
@@ -132,9 +155,20 @@ export default function SettingsPage() {
         >
           Change Password
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("membership")}
+          className={`h-11 rounded-md border text-sm font-medium transition-colors ${
+            activeTab === "membership"
+              ? "border-[#8ecaf2] bg-[#72B4E6] text-[#112f52]"
+              : "border-white/25 bg-white/95 text-[#4b5a78]"
+          }`}
+        >
+          Membership Limit
+        </button>
       </div>
 
-      {profileQuery.isLoading ? (
+      {profileQuery.isLoading && activeTab !== "membership" ? (
         <TableSkeleton rows={6} />
       ) : activeTab === "profile" ? (
         <Card className="overflow-hidden border-[#80b8df42]">
@@ -261,7 +295,7 @@ export default function SettingsPage() {
             </form>
           </CardContent>
         </Card>
-      ) : (
+      ) : activeTab === "password" ? (
         <Card className="overflow-hidden border-[#80b8df42]">
           <CardContent className="space-y-4 p-4">
             <form
@@ -348,6 +382,72 @@ export default function SettingsPage() {
                   {passwordMutation.isPending ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
+            </form>
+          </CardContent>
+        </Card>
+      ) : membershipQuery.isLoading ? (
+        <TableSkeleton rows={4} />
+      ) : membershipQuery.isError ? (
+        <Card className="overflow-hidden border-[#80b8df42]">
+          <CardContent className="p-4 text-sm text-red-300">
+            {getErrorMessage(membershipQuery.error)}
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="overflow-hidden border-[#80b8df42]">
+          <CardContent className="space-y-4 p-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="rounded-lg border border-white/15 bg-white/5 p-4">
+                <p className="text-xs uppercase tracking-wide text-slate-300">Current Premium</p>
+                <p className="mt-2 text-3xl font-semibold text-white">{membership?.currentPremiumUsers ?? 0}</p>
+              </div>
+              <div className="rounded-lg border border-white/15 bg-white/5 p-4">
+                <p className="text-xs uppercase tracking-wide text-slate-300">Max Capacity</p>
+                <p className="mt-2 text-3xl font-semibold text-white">{membership?.maxPremiumUsers ?? 20}</p>
+              </div>
+              <div className="rounded-lg border border-white/15 bg-white/5 p-4">
+                <p className="text-xs uppercase tracking-wide text-slate-300">Spots Remaining</p>
+                <p className="mt-2 text-3xl font-semibold text-white">{membership?.spotsRemaining ?? 0}</p>
+              </div>
+            </div>
+
+            {!membership?.available ? (
+              <p className="rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
+                {membership?.message ||
+                  "Premium memberships are currently full. Please check back later for availability."}
+              </p>
+            ) : null}
+
+            <form
+              className="space-y-4 rounded-lg border border-white/15 p-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const parsed = Number(membershipInputValue);
+                if (!Number.isInteger(parsed) || parsed < 0) {
+                  toast.error("Enter a non-negative whole number.");
+                  return;
+                }
+                membershipMutation.mutate({ maxPremiumUsers: parsed });
+              }}
+            >
+              <div className="space-y-2">
+                <Label>Maximum Premium Users</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={membershipInputValue}
+                  onChange={(event) => setMaxPremiumUsersInput(event.target.value)}
+                  required
+                />
+                <p className="text-xs text-slate-300">
+                  Default is 20. Lowering the limit below the current count will not remove existing members, but new
+                  Premium purchases stay blocked until a spot opens.
+                </p>
+              </div>
+              <Button type="submit" disabled={membershipMutation.isPending}>
+                {membershipMutation.isPending ? "Saving..." : "Update Limit"}
+              </Button>
             </form>
           </CardContent>
         </Card>

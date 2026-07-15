@@ -29,6 +29,84 @@ export type AdminUser = {
   isSponsored: boolean;
   sponsorshipNote: string;
   role: "user" | "admin";
+  subscriptionStartedAt?: string | null;
+  subscriptionEndsAt?: string | null;
+  hasWorkoutPlan?: boolean;
+  hasNutritionPlan?: boolean;
+  workoutPlanCount?: number;
+  nutritionPlanCount?: number;
+};
+
+export type MembershipSettings = {
+  maxPremiumUsers: number;
+  currentPremiumUsers: number;
+  spotsRemaining: number;
+  available: boolean;
+  message: string | null;
+};
+
+export type NutritionPlanMeal = {
+  id?: string;
+  mealType: string;
+  order: number;
+  notes?: string;
+  recipe: {
+    id: string;
+    recipeName: string;
+    recipeType?: string;
+    caloriesKcal?: number;
+    recipeImage?: string | null;
+    durationMinutes?: number;
+  } | null;
+};
+
+export type NutritionPlan = {
+  id: string;
+  title: string;
+  description: string;
+  assignedUser: { id: string; firstName: string; email: string } | null;
+  status: "draft" | "published" | "archived";
+  isActive: boolean;
+  dayCount: number;
+  mealCount?: number;
+  nutritionDays?: Array<{
+    dayIndex: number;
+    label: string;
+    meals: NutritionPlanMeal[];
+  }>;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PremiumUserDetail = {
+  user: AdminUser & {
+    fitnessGoals?: string[];
+    weightCurrent?: { value?: number; unit?: string } | null;
+    goalWeight?: { value?: number; unit?: string } | null;
+    height?: { value?: number; unit?: string } | null;
+    age?: number | null;
+    gender?: string | null;
+  };
+  workoutPlans: Array<{
+    id: string;
+    programName: string;
+    status: string;
+    programLevel: string;
+    durationMinutes: number;
+    weekCount?: number;
+    dayCount: number;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  nutritionPlans: Array<{
+    id: string;
+    title: string;
+    description: string;
+    status: string;
+    dayCount: number;
+    createdAt: string;
+    updatedAt: string;
+  }>;
 };
 
 export type DashboardOverview = {
@@ -836,6 +914,71 @@ export async function uploadChatAttachment(file: File) {
   });
 
   return unwrap(response);
+}
+
+export async function getMembershipSettings() {
+  const response = await api.get<ApiEnvelope<MembershipSettings>>("/admin/settings/membership");
+  return unwrap(response);
+}
+
+export async function updateMembershipSettings(payload: { maxPremiumUsers: number }) {
+  const response = await api.patch<ApiEnvelope<MembershipSettings>>("/admin/settings/membership", payload);
+  return unwrap(response);
+}
+
+export async function getAdminPremiumUsers(params: { page?: number; limit?: number; search?: string }) {
+  const response = await api.get<ApiEnvelope<AdminUser[]>>("/admin/premium-users", { params });
+  return unwrapPaginated(response);
+}
+
+export async function getAdminPremiumUserById(userId: string) {
+  const response = await api.get<ApiEnvelope<PremiumUserDetail>>(`/admin/premium-users/${userId}`);
+  return unwrap(response);
+}
+
+export async function getAdminNutritionPlans(params: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  assignedUser?: string;
+  status?: string;
+}) {
+  const response = await api.get<ApiEnvelope<NutritionPlan[]>>("/nutrition-plans/admin", { params });
+  return unwrapPaginated(response);
+}
+
+export async function getAdminNutritionPlanById(planId: string) {
+  const response = await api.get<ApiEnvelope<NutritionPlan>>(`/nutrition-plans/admin/${planId}`);
+  return unwrap(response);
+}
+
+export type CreateNutritionPlanPayload = {
+  title: string;
+  description?: string;
+  assignedUser: string;
+  status?: string;
+  nutritionDays: Array<{
+    dayIndex: number;
+    label?: string;
+    meals: Array<{ recipe: string; mealType?: string; order?: number; notes?: string }>;
+  }>;
+};
+
+export type UpdateNutritionPlanPayload = Partial<CreateNutritionPlanPayload>;
+
+export async function createNutritionPlan(payload: CreateNutritionPlanPayload) {
+  const response = await api.post<ApiEnvelope<NutritionPlan>>("/nutrition-plans/admin", payload);
+  return unwrap(response);
+}
+
+export async function updateNutritionPlan(planId: string, payload: UpdateNutritionPlanPayload) {
+  const response = await api.patch<ApiEnvelope<NutritionPlan>>(`/nutrition-plans/admin/${planId}`, payload);
+  return unwrap(response);
+}
+
+export async function deleteNutritionPlan(planId: string) {
+  const response = await api.delete<ApiEnvelope<null>>(`/nutrition-plans/admin/${planId}`);
+  return response.data;
 }
 
 export { api };

@@ -2,6 +2,7 @@ import {
   BarChart3,
   LineChart,
   CircleDollarSign,
+  Crown,
   Dumbbell,
   Home,
   MessageSquare,
@@ -17,6 +18,7 @@ import {
 export const navItems = [
   { label: "Dashboard Overview", href: "/dashboard", icon: Home },
   { label: "User Management", href: "/user-management", icon: Users },
+  { label: "Premium Users", href: "/premium-users", icon: Crown },
   { label: "Program Management", href: "/program-management", icon: PackageOpen },
   { label: "Exercise Library", href: "/exercise-library", icon: Dumbbell },
   { label: "Recipes Management", href: "/recipes-management", icon: Soup },

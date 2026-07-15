@@ -6,6 +6,7 @@ import { authRoutes, defaultProtectedRoute } from "@/lib/constants";
 const protectedPrefixes = [
   "/dashboard",
   "/user-management",
+  "/premium-users",
   "/program-management",
   "/exercise-library",
   "/recipes-management",
