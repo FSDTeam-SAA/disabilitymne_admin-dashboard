@@ -29,16 +29,28 @@ import {
 import { cn } from "@/lib/utils";
 
 const WEEKDAY_OPTIONS: Array<{ dayIndex: number; label: string }> = [
-  { dayIndex: 1, label: "Mon" },
-  { dayIndex: 2, label: "Tue" },
-  { dayIndex: 3, label: "Wed" },
-  { dayIndex: 4, label: "Thu" },
-  { dayIndex: 5, label: "Fri" },
-  { dayIndex: 6, label: "Sat" },
-  { dayIndex: 7, label: "Sun" },
+  { dayIndex: 1, label: "Monday" },
+  { dayIndex: 2, label: "Tuesday" },
+  { dayIndex: 3, label: "Wednesday" },
+  { dayIndex: 4, label: "Thursday" },
+  { dayIndex: 5, label: "Friday" },
+  { dayIndex: 6, label: "Saturday" },
+  { dayIndex: 7, label: "Sunday" },
 ];
 
-const DEFAULT_DAY_INDICES = [1, 3, 5];
+const MEAL_SLOT_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "meal_1", label: "Meal 1" },
+  { value: "snack_1", label: "Snack 1" },
+  { value: "meal_2", label: "Meal 2" },
+  { value: "snack_2", label: "Snack 2" },
+  { value: "meal_3", label: "Meal 3" },
+  { value: "snack_3", label: "Snack 3" },
+];
+
+const DEFAULT_DAY_INDICES = [1, 2, 3, 4, 5, 6, 7];
+
+const mealSlotLabel = (mealType: string) =>
+  MEAL_SLOT_OPTIONS.find((slot) => slot.value === mealType)?.label || mealType;
 
 type WorkoutDayAssignment = { dayIndex: number; exerciseIds: string[] };
 type NutritionDayDraft = {
@@ -105,6 +117,7 @@ export default function PremiumUserDetailPage() {
     WEEKDAY_OPTIONS.map((day) => ({ dayIndex: day.dayIndex, meals: [] }))
   );
   const [selectedNutritionDay, setSelectedNutritionDay] = useState(1);
+  const [selectedMealSlot, setSelectedMealSlot] = useState("meal_1");
   const [recipeSearch, setRecipeSearch] = useState("");
 
   const programImagePreviews = useMemo(
@@ -910,6 +923,16 @@ export default function PremiumUserDetailPage() {
                 <Label className="text-xs">
                   Add recipe to {getDayLabel(selectedNutritionDay)}
                 </Label>
+                <Select
+                  value={selectedMealSlot}
+                  onChange={(event) => setSelectedMealSlot(event.target.value)}
+                >
+                  {MEAL_SLOT_OPTIONS.map((slot) => (
+                    <option key={slot.value} value={slot.value}>
+                      {slot.label}
+                    </option>
+                  ))}
+                </Select>
                 <input
                   className={fieldClass}
                   value={recipeSearch}
@@ -922,20 +945,22 @@ export default function PremiumUserDetailPage() {
                   onChange={(event) => {
                     const recipeId = event.target.value;
                     if (!recipeId) return;
-                    const recipe = recipes.find((item) => item.id === recipeId);
                     setNutritionDays((prev) =>
                       prev.map((day) => {
                         if (day.dayIndex !== selectedNutritionDay) return day;
+                        const nextOrder =
+                          MEAL_SLOT_OPTIONS.findIndex((slot) => slot.value === selectedMealSlot) + 1 ||
+                          day.meals.length + 1;
                         return {
                           ...day,
                           meals: [
-                            ...day.meals,
+                            ...day.meals.filter((meal) => meal.mealType !== selectedMealSlot),
                             {
                               recipe: recipeId,
-                              mealType: recipe?.recipeType || "meal",
-                              order: day.meals.length + 1,
+                              mealType: selectedMealSlot,
+                              order: nextOrder > 0 ? nextOrder : day.meals.length + 1,
                             },
-                          ],
+                          ].sort((a, b) => a.order - b.order),
                         };
                       })
                     );
@@ -952,7 +977,9 @@ export default function PremiumUserDetailPage() {
 
                 <div className="space-y-2 rounded-lg border border-[#7cb6df55] bg-[#1b3457]/35 p-3">
                   {(currentNutritionDay?.meals || []).length === 0 ? (
-                    <p className="text-xs text-slate-300">No meals added for this day yet.</p>
+                    <p className="text-xs text-slate-300">
+                      No meals added for this day yet. Use Meal 1 / Snack 1 / Meal 2 / Snack 2 / Meal 3 / Snack 3 slots.
+                    </p>
                   ) : (
                     (currentNutritionDay?.meals || []).map((meal, index) => {
                       const recipe = recipes.find((item) => item.id === meal.recipe);
@@ -962,7 +989,7 @@ export default function PremiumUserDetailPage() {
                           className="flex items-center justify-between gap-3 rounded-md border border-[#7cb6df55] bg-[#132f4f] px-3 py-2 text-sm text-white"
                         >
                           <span>
-                            {recipe?.recipeName || meal.recipe} · {meal.mealType}
+                            {mealSlotLabel(meal.mealType)} · {recipe?.recipeName || meal.recipe}
                           </span>
                           <button
                             type="button"

@@ -19,6 +19,8 @@ export const navItems = [
   { label: "Dashboard Overview", href: "/dashboard", icon: Home },
   { label: "User Management", href: "/user-management", icon: Users },
   { label: "Premium Users", href: "/premium-users", icon: Crown },
+  { label: "Workout Program Library", href: "/premium-users/workout-library", icon: Dumbbell },
+  { label: "Meal Program Library", href: "/premium-users/meal-library", icon: Soup },
   { label: "Program Management", href: "/program-management", icon: PackageOpen },
   { label: "Exercise Library", href: "/exercise-library", icon: Dumbbell },
   { label: "Recipes Management", href: "/recipes-management", icon: Soup },

@@ -23,6 +23,7 @@ export type AdminUser = {
   createdAt: string;
   subscription: string;
   selectedPlan: string | null;
+  subscriptionStatus?: string | null;
   mobilityType: string;
   status: "active" | "deactivated" | "suspended";
   isActive: boolean;
@@ -35,6 +36,21 @@ export type AdminUser = {
   hasNutritionPlan?: boolean;
   workoutPlanCount?: number;
   nutritionPlanCount?: number;
+};
+
+export type SubscriptionUser = AdminUser & {
+  planKey?: string | null;
+  isPremium?: boolean;
+};
+
+export type SubscriptionListMeta = PaginationMeta & {
+  counts?: {
+    active?: number;
+    expired?: number;
+    cancelled?: number;
+    pending_payment?: number;
+    trial?: number;
+  };
 };
 
 export type MembershipSettings = {
@@ -65,6 +81,8 @@ export type NutritionPlan = {
   title: string;
   description: string;
   assignedUser: { id: string; firstName: string; email: string } | null;
+  isTemplate?: boolean;
+  sourceTemplate?: string | null;
   status: "draft" | "published" | "archived";
   isActive: boolean;
   dayCount: number;
@@ -132,6 +150,8 @@ export type Program = {
   programLevel: string;
   userType: "normal_user" | "premium_user";
   plan: string;
+  isTemplate?: boolean;
+  sourceTemplate?: string | null;
   assignedUser: { id: string; firstName: string; email: string } | null;
   programDescription: string;
   safetyNote?: string;
@@ -507,6 +527,9 @@ export async function getAdminPrograms(params: {
   search?: string;
   status?: string;
   userType?: string;
+  templatesOnly?: boolean;
+  templates?: boolean;
+  assignedUser?: string;
 }) {
   const response = await api.get<ApiEnvelope<Program[]>>("/programs/admin", { params });
   return unwrapPaginated(response);
@@ -532,6 +555,7 @@ export type CreateProgramPayload = {
   programLevel: string;
   userType: "normal_user" | "premium_user";
   assignedUser?: string;
+  isTemplate?: boolean;
   programDescription: string;
   mobilityType: string;
   exerciseIds: string[];
@@ -936,12 +960,75 @@ export async function getAdminPremiumUserById(userId: string) {
   return unwrap(response);
 }
 
+export async function deleteAdminPremiumUser(userId: string, options?: { hardDelete?: boolean; note?: string }) {
+  const response = await api.delete<ApiEnvelope<AdminUser | null>>(`/admin/premium-users/${userId}`, {
+    params: options?.hardDelete ? { hard: true } : undefined,
+    data: options?.note ? { note: options.note } : undefined,
+  });
+  return response.data;
+}
+
+export async function getAdminSubscriptions(params: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  plan?: string;
+}) {
+  const response = await api.get<{
+    success: boolean;
+    message?: string;
+    data: SubscriptionUser[];
+    meta: SubscriptionListMeta;
+  }>("/admin/subscriptions", { params });
+  return {
+    data: response.data.data,
+    meta: response.data.meta,
+  };
+}
+
+export async function syncAdminSubscriptions() {
+  const response = await api.post<ApiEnvelope<{ scanned: number; updated: number }>>("/admin/subscriptions/sync");
+  return unwrap(response);
+}
+
+export async function assignProgramToPremiumUser(
+  programId: string,
+  payload: { userId: string; allowDuplicate?: boolean }
+) {
+  const response = await api.post<ApiEnvelope<Program>>(`/programs/admin/${programId}/assign`, payload);
+  return unwrap(response);
+}
+
+export async function duplicateAdminProgram(programId: string, payload?: { asTemplate?: boolean }) {
+  const response = await api.post<ApiEnvelope<Program>>(`/programs/admin/${programId}/duplicate`, payload || {});
+  return unwrap(response);
+}
+
+export async function assignNutritionPlanToPremiumUser(
+  planId: string,
+  payload: { userId: string; allowDuplicate?: boolean }
+) {
+  const response = await api.post<ApiEnvelope<NutritionPlan>>(`/nutrition-plans/admin/${planId}/assign`, payload);
+  return unwrap(response);
+}
+
+export async function duplicateAdminNutritionPlan(planId: string, payload?: { asTemplate?: boolean }) {
+  const response = await api.post<ApiEnvelope<NutritionPlan>>(
+    `/nutrition-plans/admin/${planId}/duplicate`,
+    payload || {}
+  );
+  return unwrap(response);
+}
+
 export async function getAdminNutritionPlans(params: {
   page?: number;
   limit?: number;
   search?: string;
   assignedUser?: string;
   status?: string;
+  templatesOnly?: boolean;
+  templates?: boolean;
 }) {
   const response = await api.get<ApiEnvelope<NutritionPlan[]>>("/nutrition-plans/admin", { params });
   return unwrapPaginated(response);
@@ -955,7 +1042,8 @@ export async function getAdminNutritionPlanById(planId: string) {
 export type CreateNutritionPlanPayload = {
   title: string;
   description?: string;
-  assignedUser: string;
+  assignedUser?: string;
+  isTemplate?: boolean;
   status?: string;
   nutritionDays: Array<{
     dayIndex: number;
