@@ -1,16 +1,26 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageTitle } from "@/components/shared/page-title";
+import { Pagination } from "@/components/shared/pagination";
 import { TableSkeleton } from "@/components/shared/table-skeleton";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getAdminUsers, getSubscriptionPlans } from "@/lib/api";
+import {
+  getAdminSubscriptions,
+  getAdminUsers,
+  getErrorMessage,
+  getSubscriptionPlans,
+  syncAdminSubscriptions,
+} from "@/lib/api";
 import { planPriceFallback } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
 
@@ -52,8 +62,13 @@ const getSubscriptionMeta = (planKey?: string | null) => {
 };
 
 export default function RevenuePage() {
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [subscription, setSubscription] = useState("");
+  const [subPage, setSubPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [subSearch, setSubSearch] = useState("");
+  const [subSearchInput, setSubSearchInput] = useState("");
 
   const usersQuery = useQuery({
     queryKey: ["revenue-users", page, subscription],
@@ -63,6 +78,26 @@ export default function RevenuePage() {
         limit: 10,
         subscription: subscription || undefined,
       }),
+  });
+
+  const subscriptionsQuery = useQuery({
+    queryKey: ["admin-subscriptions", subPage, statusFilter, subSearch],
+    queryFn: () =>
+      getAdminSubscriptions({
+        page: subPage,
+        limit: 10,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        search: subSearch || undefined,
+      }),
+  });
+
+  const syncMutation = useMutation({
+    mutationFn: syncAdminSubscriptions,
+    onSuccess: (data) => {
+      toast.success(`Synced ${data.updated} expired subscription(s).`);
+      queryClient.invalidateQueries({ queryKey: ["admin-subscriptions"] });
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
   });
 
   const plansQuery = useQuery({
@@ -101,6 +136,117 @@ export default function RevenuePage() {
   return (
     <div className="space-y-5">
       <PageTitle title="Revenue" breadcrumb="Dashboard  >  Revenue" />
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold text-white">User Subscriptions</h2>
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() => syncMutation.mutate()}
+          disabled={syncMutation.isPending}
+        >
+          <RefreshCw className={`size-4 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+          Sync statuses
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {["all", "active", "pending_payment", "expired", "cancelled", "trial"].map((status) => (
+          <button
+            key={status}
+            type="button"
+            onClick={() => {
+              setStatusFilter(status);
+              setSubPage(1);
+            }}
+            className={`rounded-full px-3 py-1 text-xs capitalize ${
+              statusFilter === status
+                ? "bg-[#72B4E6] text-[#112f52]"
+                : "border border-white/20 text-slate-300"
+            }`}
+          >
+            {status.replace("_", " ")}
+            {status !== "all" && subscriptionsQuery.data?.meta?.counts
+              ? ` (${(subscriptionsQuery.data.meta.counts as Record<string, number>)[status] ?? 0})`
+              : ""}
+          </button>
+        ))}
+      </div>
+
+      <form
+        className="flex flex-col gap-3 md:flex-row"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setSubPage(1);
+          setSubSearch(subSearchInput.trim());
+        }}
+      >
+        <Input
+          value={subSearchInput}
+          onChange={(event) => setSubSearchInput(event.target.value)}
+          placeholder="Search subscribers by name or email"
+          className="md:max-w-md"
+        />
+        <Button type="submit">Search</Button>
+      </form>
+
+      {subscriptionsQuery.isLoading ? (
+        <TableSkeleton rows={6} />
+      ) : subscriptionsQuery.isError ? (
+        <EmptyState title="Failed to load subscriptions" description={getErrorMessage(subscriptionsQuery.error)} />
+      ) : (subscriptionsQuery.data?.data || []).length === 0 ? (
+        <EmptyState title="No subscriptions" description="No users match this subscription filter." />
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-[#7cb6df33]">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Plan</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Started</TableHead>
+                <TableHead>Ends</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(subscriptionsQuery.data?.data || []).map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell>
+                    <p className="font-medium text-white">{user.name}</p>
+                    <p className="text-xs text-slate-400">{user.email}</p>
+                  </TableCell>
+                  <TableCell className="capitalize">{user.selectedPlan || user.planKey || "—"}</TableCell>
+                  <TableCell>
+                    <span className="rounded-full border border-white/20 px-2 py-0.5 text-xs capitalize">
+                      {(user.subscriptionStatus || "none").replace("_", " ")}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-xs text-slate-300">
+                    {user.subscriptionStartedAt
+                      ? new Date(user.subscriptionStartedAt).toLocaleDateString()
+                      : "—"}
+                  </TableCell>
+                  <TableCell className="text-xs text-slate-300">
+                    {user.subscriptionEndsAt
+                      ? new Date(user.subscriptionEndsAt).toLocaleDateString()
+                      : "Open"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {subscriptionsQuery.data?.meta && subscriptionsQuery.data.meta.totalPages > 1 ? (
+        <Pagination
+          page={subscriptionsQuery.data.meta.page}
+          totalPages={subscriptionsQuery.data.meta.totalPages}
+          onPageChange={setSubPage}
+        />
+      ) : null}
+
+      <h2 className="pt-4 text-lg font-semibold text-white">Revenue by User</h2>
 
       <Card className="overflow-hidden border-[#80b8df42]">
         <CardContent className="space-y-4 p-0">

@@ -193,7 +193,7 @@ export default function SettingsPage() {
                 disabled={profileImageMutation.isPending}
                 onClick={() => profileImageInputRef.current?.click()}
               >
-                <SquarePen className="mr-2 size-4" />
+                <SquarePen className="size-4" />
                 {profileImageMutation.isPending ? "Uploading..." : "Edit"}
               </Button>
               <input
@@ -224,7 +224,7 @@ export default function SettingsPage() {
                   className="h-10 rounded-md bg-[#72B4E6] px-6 text-sm font-medium text-white hover:bg-[#84c4ef]"
                   onClick={() => setIsProfileEditing((prev) => !prev)}
                 >
-                  <SquarePen className="mr-2 size-4" />
+                  <SquarePen className="size-4" />
                   Edit
                 </Button>
               </div>

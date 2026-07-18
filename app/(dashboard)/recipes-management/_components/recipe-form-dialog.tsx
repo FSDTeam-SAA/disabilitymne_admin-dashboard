@@ -119,15 +119,18 @@ export function RecipeFormDialog({
                   <Select
                     value={formData.assignedUser}
                     onChange={(event) => setFormData((prev) => ({ ...prev, assignedUser: event.target.value }))}
-                    required
                   >
-                    <option value="">Select premium user</option>
+                    <option value="">Private — Admin only (no user assigned)</option>
                     {premiumUsers.map((user) => (
                       <option key={user.id} value={user.id}>
                         {user.firstName} ({user.email})
                       </option>
                     ))}
                   </Select>
+                  <p className="text-xs text-slate-300">
+                    Leave as “Private” to keep this recipe in your admin-only premium library. Regular users can never
+                    see it.
+                  </p>
                 </div>
               ) : null}
               <div className="space-y-2">

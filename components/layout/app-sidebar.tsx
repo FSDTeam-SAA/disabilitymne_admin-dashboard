@@ -123,7 +123,7 @@ export function AppSidebar({
           className="w-full"
           onClick={() => setLogoutOpen(true)}
         >
-          <LogOut className="mr-2 size-4" />
+          <LogOut className="size-4" />
           Log out
         </Button>
       </div>

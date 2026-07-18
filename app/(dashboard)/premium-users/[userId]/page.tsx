@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowLeft, Upload, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, ChevronsUpDown, Upload, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -11,7 +11,16 @@ import { PageTitle } from "@/components/shared/page-title";
 import { TableSkeleton } from "@/components/shared/table-skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -119,6 +128,12 @@ export default function PremiumUserDetailPage() {
   const [selectedNutritionDay, setSelectedNutritionDay] = useState(1);
   const [selectedMealSlot, setSelectedMealSlot] = useState("meal_1");
   const [recipeSearch, setRecipeSearch] = useState("");
+  const [recipePickerOpen, setRecipePickerOpen] = useState(false);
+
+  const workoutFormRef = useRef<HTMLDivElement | null>(null);
+  const workoutTitleInputRef = useRef<HTMLInputElement | null>(null);
+  const nutritionFormRef = useRef<HTMLDivElement | null>(null);
+  const nutritionTitleInputRef = useRef<HTMLInputElement | null>(null);
 
   const programImagePreviews = useMemo(
     () => programImageFiles.map((file) => URL.createObjectURL(file)),
@@ -212,6 +227,45 @@ export default function PremiumUserDetailPage() {
       setMobilityType(detail.user.mobilityType);
     }
   }, [detail?.user.mobilityType, editingProgramId, mobilityType]);
+
+  const startNewWorkoutPlan = () => {
+    resetWorkoutForm();
+    requestAnimationFrame(() => {
+      workoutFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      workoutTitleInputRef.current?.focus();
+    });
+  };
+
+  const startNewNutritionPlan = () => {
+    resetNutritionForm();
+    requestAnimationFrame(() => {
+      nutritionFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      nutritionTitleInputRef.current?.focus();
+    });
+  };
+
+  const addRecipeToSelectedDay = (recipeId: string) => {
+    if (!recipeId) return;
+    setNutritionDays((prev) =>
+      prev.map((day) => {
+        if (day.dayIndex !== selectedNutritionDay) return day;
+        const nextOrder =
+          MEAL_SLOT_OPTIONS.findIndex((slot) => slot.value === selectedMealSlot) + 1 ||
+          day.meals.length + 1;
+        return {
+          ...day,
+          meals: [
+            ...day.meals.filter((meal) => meal.mealType !== selectedMealSlot),
+            {
+              recipe: recipeId,
+              mealType: selectedMealSlot,
+              order: nextOrder > 0 ? nextOrder : day.meals.length + 1,
+            },
+          ].sort((a, b) => a.order - b.order),
+        };
+      })
+    );
+  };
 
   const loadProgram = async (programId: string) => {
     const program = await getAdminProgramById(programId);
@@ -454,7 +508,7 @@ export default function PremiumUserDetailPage() {
           description={getErrorMessage(detailQuery.error) || "User not found."}
         />
         <Button type="button" variant="outline" onClick={() => router.push("/premium-users")}>
-          <ArrowLeft className="mr-2 size-4" />
+          <ArrowLeft className="size-4" />
           Back to Premium Users
         </Button>
       </div>
@@ -469,7 +523,7 @@ export default function PremiumUserDetailPage() {
           breadcrumb="Dashboard  >  Premium Users  >  Detail"
         />
         <Button type="button" variant="outline" onClick={() => router.push("/premium-users")}>
-          <ArrowLeft className="mr-2 size-4" />
+          <ArrowLeft className="size-4" />
           Back
         </Button>
       </div>
@@ -528,7 +582,7 @@ export default function PremiumUserDetailPage() {
             <CardContent className="space-y-3 p-4">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-lg font-semibold text-white">Assigned workout plans</h3>
-                <Button type="button" variant="outline" onClick={resetWorkoutForm}>
+                <Button type="button" variant="outline" onClick={startNewWorkoutPlan}>
                   New plan
                 </Button>
               </div>
@@ -558,7 +612,7 @@ export default function PremiumUserDetailPage() {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden border-[#80b8df42]">
+          <Card ref={workoutFormRef} className="overflow-hidden border-[#80b8df42]">
             <CardContent className="space-y-4 p-4">
               <h3 className="text-lg font-semibold text-white">
                 {editingProgramId ? "Edit workout plan" : "Create workout plan"}
@@ -568,6 +622,7 @@ export default function PremiumUserDetailPage() {
                 <div className="space-y-2">
                   <Label className="text-xs">Program Name</Label>
                   <input
+                    ref={workoutTitleInputRef}
                     className={fieldClass}
                     value={programName}
                     onChange={(e) => setProgramName(e.target.value)}
@@ -827,7 +882,7 @@ export default function PremiumUserDetailPage() {
             <CardContent className="space-y-3 p-4">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-lg font-semibold text-white">Assigned nutrition plans</h3>
-                <Button type="button" variant="outline" onClick={resetNutritionForm}>
+                <Button type="button" variant="outline" onClick={startNewNutritionPlan}>
                   New plan
                 </Button>
               </div>
@@ -859,7 +914,7 @@ export default function PremiumUserDetailPage() {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden border-[#80b8df42]">
+          <Card ref={nutritionFormRef} className="overflow-hidden border-[#80b8df42]">
             <CardContent className="space-y-4 p-4">
               <h3 className="text-lg font-semibold text-white">
                 {editingNutritionId ? "Edit nutrition plan" : "Create nutrition plan"}
@@ -869,6 +924,7 @@ export default function PremiumUserDetailPage() {
                 <div className="space-y-2 md:col-span-2">
                   <Label className="text-xs">Plan Title</Label>
                   <input
+                    ref={nutritionTitleInputRef}
                     className={fieldClass}
                     value={nutritionTitle}
                     onChange={(e) => setNutritionTitle(e.target.value)}
@@ -933,47 +989,62 @@ export default function PremiumUserDetailPage() {
                     </option>
                   ))}
                 </Select>
-                <input
-                  className={fieldClass}
-                  value={recipeSearch}
-                  onChange={(e) => setRecipeSearch(e.target.value)}
-                  placeholder="Search recipes..."
-                />
-                <select
-                  className={fieldClass}
-                  defaultValue=""
-                  onChange={(event) => {
-                    const recipeId = event.target.value;
-                    if (!recipeId) return;
-                    setNutritionDays((prev) =>
-                      prev.map((day) => {
-                        if (day.dayIndex !== selectedNutritionDay) return day;
-                        const nextOrder =
-                          MEAL_SLOT_OPTIONS.findIndex((slot) => slot.value === selectedMealSlot) + 1 ||
-                          day.meals.length + 1;
-                        return {
-                          ...day,
-                          meals: [
-                            ...day.meals.filter((meal) => meal.mealType !== selectedMealSlot),
-                            {
-                              recipe: recipeId,
-                              mealType: selectedMealSlot,
-                              order: nextOrder > 0 ? nextOrder : day.meals.length + 1,
-                            },
-                          ].sort((a, b) => a.order - b.order),
-                        };
-                      })
-                    );
-                    event.target.value = "";
-                  }}
-                >
-                  <option value="">Select a recipe…</option>
-                  {recipes.map((recipe) => (
-                    <option key={recipe.id} value={recipe.id}>
-                      {recipe.recipeName} ({recipe.recipeType})
-                    </option>
-                  ))}
-                </select>
+                <Popover open={recipePickerOpen} onOpenChange={setRecipePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex h-10 w-full items-center justify-between rounded-md border border-[#7cb6df66] bg-[#1b3457]/80 px-3 text-sm text-slate-300/90 transition-colors hover:bg-[#23456f]/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60"
+                    >
+                      <span>
+                        Add {mealSlotLabel(selectedMealSlot)} recipe to {getDayLabel(selectedNutritionDay)}
+                      </span>
+                      <ChevronsUpDown className="size-4 shrink-0 text-slate-400" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent>
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        value={recipeSearch}
+                        onValueChange={setRecipeSearch}
+                        placeholder="Search recipes…"
+                      />
+                      <CommandList>
+                        {recipesQuery.isLoading ? (
+                          <CommandEmpty>Loading recipes…</CommandEmpty>
+                        ) : recipesQuery.isError ? (
+                          <CommandEmpty className="text-red-300">
+                            {getErrorMessage(recipesQuery.error)}
+                          </CommandEmpty>
+                        ) : recipes.length === 0 ? (
+                          <CommandEmpty>
+                            {recipeSearch.trim()
+                              ? `No recipes match "${recipeSearch.trim()}".`
+                              : "No recipes found."}
+                          </CommandEmpty>
+                        ) : (
+                          <CommandGroup>
+                            {recipes.map((recipe) => (
+                              <CommandItem
+                                key={recipe.id}
+                                value={recipe.id}
+                                onSelect={() => {
+                                  addRecipeToSelectedDay(recipe.id);
+                                  setRecipePickerOpen(false);
+                                  setRecipeSearch("");
+                                }}
+                              >
+                                {recipe.recipeName}
+                                <span className="ml-auto pl-3 text-xs capitalize text-slate-400">
+                                  {recipe.recipeType}
+                                </span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        )}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
 
                 <div className="space-y-2 rounded-lg border border-[#7cb6df55] bg-[#1b3457]/35 p-3">
                   {(currentNutritionDay?.meals || []).length === 0 ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { MessageCircleMore, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -14,6 +14,7 @@ import { TableSkeleton } from "@/components/shared/table-skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  createOrGetChatThread,
   deleteAdminPremiumUser,
   getAdminPremiumUsers,
   getErrorMessage,
@@ -38,6 +39,29 @@ export default function PremiumUsersPage() {
 
   const users = useMemo(() => premiumUsersQuery.data?.data || [], [premiumUsersQuery.data]);
   const meta = premiumUsersQuery.data?.meta;
+
+  const [openingChatForUserId, setOpeningChatForUserId] = useState<string | null>(null);
+
+  const openChatMutation = useMutation({
+    mutationFn: async (user: AdminUser) => {
+      const thread = await createOrGetChatThread({ premiumUserId: user.id });
+      return { thread, user };
+    },
+    onSuccess: ({ thread, user }) => {
+      const name = user.name || thread.counterpart?.firstName || "";
+      const email = user.email || thread.counterpart?.email || "";
+      const query = new URLSearchParams();
+      if (name) {
+        query.set("name", name);
+      }
+      if (email) {
+        query.set("email", email);
+      }
+      router.push(`/support/chat/${thread.id}${query.size > 0 ? `?${query.toString()}` : ""}`);
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+    onSettled: () => setOpeningChatForUserId(null),
+  });
 
   const deleteMutation = useMutation({
     mutationFn: (userId: string) =>
@@ -123,6 +147,18 @@ export default function PremiumUsersPage() {
                     {user.subscriptionStatus || "Premium"}
                   </span>
                   <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setOpeningChatForUserId(user.id);
+                        openChatMutation.mutate(user);
+                      }}
+                      disabled={openChatMutation.isPending && openingChatForUserId === user.id}
+                    >
+                      <MessageCircleMore className="size-4" />
+                      Message
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"

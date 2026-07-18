@@ -247,8 +247,9 @@ export default function RecipesManagementPage() {
     payload.append("fatG", formData.fatG);
     payload.append("status", formData.status);
 
-    if (formData.userType === "premium_user" && formData.assignedUser) {
-      payload.append("assignedUser", formData.assignedUser);
+    if (formData.userType === "premium_user") {
+      // Empty value = private admin-only premium library recipe.
+      payload.append("assignedUser", formData.assignedUser || "");
     }
 
     if (recipeImageFile) {
@@ -274,7 +275,7 @@ export default function RecipesManagementPage() {
             className="w-full rounded-md border border-[#9cd7ff6e] bg-[linear-gradient(180deg,#98d5f8_0%,#5d97c4_100%)] px-6 text-sm font-semibold text-white shadow-[0_12px_30px_-16px_rgba(126,195,244,.8)] hover:brightness-105 md:w-auto"
             onClick={onOpenCreate}
           >
-            <Plus className="mr-2 size-4" />
+            <Plus className="size-4" />
             Add new Recipes
           </Button>
         }
