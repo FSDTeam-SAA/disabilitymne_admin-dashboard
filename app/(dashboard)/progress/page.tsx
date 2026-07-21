@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { Suspense, useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import {
@@ -75,7 +75,7 @@ const aggregateStrengthByWeek = (strengthTrend: WorkoutProgress["series"]["stren
   return [...grouped.values()].sort((a, b) => new Date(a.weekStartDate).getTime() - new Date(b.weekStartDate).getTime());
 };
 
-export default function ProgressPage() {
+function ProgressPageContent() {
   const searchParams = useSearchParams();
   const [page, setPage] = useState(1);
   const [userId, setUserId] = useState(() => searchParams.get("userId") || "");
@@ -272,7 +272,7 @@ export default function ProgressPage() {
                     <Tooltip
                       contentStyle={{ backgroundColor: "#0e2444", borderColor: "#7cb6df66", color: "#fff" }}
                       labelStyle={{ color: "#fff" }}
-                      formatter={(value: number) => [`${value}%`, "Adherence"]}
+                      formatter={(value) => [`${value}%`, "Adherence"]}
                     />
                     <Line type="monotone" dataKey="adherencePercent" stroke="#7dcfff" strokeWidth={2.5} dot={{ r: 3 }} />
                   </LineChart>
@@ -375,5 +375,13 @@ export default function ProgressPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function ProgressPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProgressPageContent />
+    </Suspense>
   );
 }
