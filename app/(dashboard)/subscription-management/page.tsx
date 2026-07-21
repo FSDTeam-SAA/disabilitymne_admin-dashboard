@@ -73,13 +73,13 @@ const planDefaultsByKey: Record<string, Pick<typeof defaultForm, "name" | "price
   },
   annual: {
     name: "Annual Plan",
-    price: "144",
+    price: "13.99",
     durationLabel: "12 months",
     durationMonths: "12",
   },
   premium: {
     name: "Premium Plan",
-    price: "150",
+    price: "199.99",
     durationLabel: "1 month",
     durationMonths: "1",
   },
