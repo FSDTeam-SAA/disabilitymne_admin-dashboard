@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageCircleMore, Trash2 } from "lucide-react";
+import { BarChart2, MessageCircleMore, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -158,6 +158,14 @@ export default function PremiumUsersPage() {
                     >
                       <MessageCircleMore className="size-4" />
                       Message
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => router.push(`/progress?userId=${user.id}`)}
+                    >
+                      <BarChart2 className="size-4" />
+                      Progress
                     </Button>
                     <Button
                       size="sm"

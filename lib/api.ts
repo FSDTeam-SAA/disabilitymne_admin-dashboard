@@ -302,6 +302,11 @@ export type WorkoutProgress = {
       bestReps: number;
       totalVolume: number;
     }>;
+    nutritionAdherenceByWeek?: Array<{
+      weekStartDate: string | null;
+      daysLogged: number;
+      adherencePercent: number;
+    }>;
   };
   recentLogs: Array<{
     id: string;
@@ -508,11 +513,6 @@ export async function createAdminUser(payload: {
 
 export async function updateAdminUserStatus(userId: string, accountStatus: "active" | "deactivated" | "suspended") {
   const response = await api.patch<ApiEnvelope<AdminUser>>(`/admin/users/${userId}/status`, { accountStatus });
-  return unwrap(response);
-}
-
-export async function updateAdminUserRole(userId: string, role: "user" | "admin") {
-  const response = await api.patch<ApiEnvelope<AdminUser>>(`/admin/users/${userId}/role`, { role });
   return unwrap(response);
 }
 

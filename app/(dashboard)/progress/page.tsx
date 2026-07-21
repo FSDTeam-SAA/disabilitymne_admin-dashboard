@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import {
   Area,
   AreaChart,
@@ -75,8 +76,9 @@ const aggregateStrengthByWeek = (strengthTrend: WorkoutProgress["series"]["stren
 };
 
 export default function ProgressPage() {
+  const searchParams = useSearchParams();
   const [page, setPage] = useState(1);
-  const [userId, setUserId] = useState("");
+  const [userId, setUserId] = useState(() => searchParams.get("userId") || "");
   const [programId, setProgramId] = useState("");
   const [exerciseId, setExerciseId] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -115,13 +117,13 @@ export default function ProgressPage() {
   const summary = progressData?.summary;
   const recentLogs = progressData?.recentLogs || [];
 
-  const adherenceChartData = useMemo(
+  const nutritionAdherenceChartData = useMemo(
     () =>
-      (progressData?.series.adherenceByWeek || []).map((row) => ({
+      (progressData?.series.nutritionAdherenceByWeek || []).map((row) => ({
         ...row,
-        weekLabel: toChartDate(row.weekStartDate),
+        weekLabel: row.weekStartDate ? toChartDate(row.weekStartDate) : "Unknown",
       })),
-    [progressData?.series.adherenceByWeek]
+    [progressData?.series.nutritionAdherenceByWeek]
   );
 
   const strengthByWeek = useMemo(
@@ -256,19 +258,21 @@ export default function ProgressPage() {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card className="border-[#80b8df42]">
           <CardContent className="p-4">
-            <p className="mb-3 text-sm font-semibold text-white">Adherence Trend</p>
-            {adherenceChartData.length === 0 ? (
-              <p className="text-sm text-slate-300">No adherence data for selected filters.</p>
+            <p className="mb-3 text-sm font-semibold text-white">Nutrition Adherence</p>
+            <p className="mb-3 text-xs text-slate-400">Days per week the user logged their nutrition plan</p>
+            {nutritionAdherenceChartData.length === 0 ? (
+              <p className="text-sm text-slate-300">No nutrition data for selected filters.</p>
             ) : (
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={adherenceChartData}>
+                  <LineChart data={nutritionAdherenceChartData}>
                     <CartesianGrid stroke="#ffffff12" strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="weekLabel" stroke="#9ca3af" tick={{ fontSize: 12 }} />
                     <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} domain={[0, 100]} />
                     <Tooltip
                       contentStyle={{ backgroundColor: "#0e2444", borderColor: "#7cb6df66", color: "#fff" }}
                       labelStyle={{ color: "#fff" }}
+                      formatter={(value: number) => [`${value}%`, "Adherence"]}
                     />
                     <Line type="monotone" dataKey="adherencePercent" stroke="#7dcfff" strokeWidth={2.5} dot={{ r: 3 }} />
                   </LineChart>

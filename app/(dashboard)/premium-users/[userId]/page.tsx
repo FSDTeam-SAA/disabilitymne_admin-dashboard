@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowLeft, ChevronsUpDown, Upload, X } from "lucide-react";
+import { ArrowLeft, ChevronsUpDown, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageTitle } from "@/components/shared/page-title";
 import { TableSkeleton } from "@/components/shared/table-skeleton";
@@ -26,6 +27,8 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   createNutritionPlan,
   createProgram,
+  deleteNutritionPlan,
+  deleteProgram,
   getAdminExercises,
   getAdminNutritionPlanById,
   getAdminPremiumUserById,
@@ -103,6 +106,10 @@ export default function PremiumUserDetailPage() {
   const [activeTab, setActiveTab] = useState<"workout" | "nutrition">("workout");
   const [editingProgramId, setEditingProgramId] = useState<string | null>(null);
   const [editingNutritionId, setEditingNutritionId] = useState<string | null>(null);
+  const [deletingWorkoutId, setDeletingWorkoutId] = useState<string | null>(null);
+  const [deletingNutritionId, setDeletingNutritionId] = useState<string | null>(null);
+  const [deleteWorkoutOpen, setDeleteWorkoutOpen] = useState(false);
+  const [deleteNutritionOpen, setDeleteNutritionOpen] = useState(false);
 
   const [programName, setProgramName] = useState("");
   const [programDescription, setProgramDescription] = useState("");
@@ -488,6 +495,32 @@ export default function PremiumUserDetailPage() {
     onError: (error) => toast.error(getErrorMessage(error)),
   });
 
+  const deleteWorkoutMutation = useMutation({
+    mutationFn: (programId: string) => deleteProgram(programId),
+    onSuccess: () => {
+      toast.success("Workout plan deleted.");
+      setDeleteWorkoutOpen(false);
+      setDeletingWorkoutId(null);
+      if (editingProgramId === deletingWorkoutId) resetWorkoutForm();
+      queryClient.invalidateQueries({ queryKey: ["admin-premium-user", userId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-premium-users"] });
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+
+  const deleteNutritionMutation = useMutation({
+    mutationFn: (planId: string) => deleteNutritionPlan(planId),
+    onSuccess: () => {
+      toast.success("Nutrition plan deleted.");
+      setDeleteNutritionOpen(false);
+      setDeletingNutritionId(null);
+      if (editingNutritionId === deletingNutritionId) resetNutritionForm();
+      queryClient.invalidateQueries({ queryKey: ["admin-premium-user", userId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-premium-users"] });
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+
   const currentNutritionDay = nutritionDays.find((day) => day.dayIndex === selectedNutritionDay);
 
   if (detailQuery.isLoading) {
@@ -600,12 +633,27 @@ export default function PremiumUserDetailPage() {
                         {plan.programLevel} · {plan.dayCount} days · {plan.status}
                       </p>
                     </div>
-                    <Button
-                      type="button"
-                      onClick={() => loadProgram(plan.id).catch((e) => toast.error(getErrorMessage(e)))}
-                    >
-                      Edit
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          setDeletingWorkoutId(plan.id);
+                          setDeleteWorkoutOpen(true);
+                        }}
+                      >
+                        <Trash2 className="size-4" />
+                        Delete
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => loadProgram(plan.id).catch((e) => toast.error(getErrorMessage(e)))}
+                      >
+                        Edit
+                      </Button>
+                    </div>
                   </div>
                 ))
               )}
@@ -900,14 +948,29 @@ export default function PremiumUserDetailPage() {
                         {plan.dayCount} days · {plan.status}
                       </p>
                     </div>
-                    <Button
-                      type="button"
-                      onClick={() =>
-                        loadNutritionPlan(plan.id).catch((e) => toast.error(getErrorMessage(e)))
-                      }
-                    >
-                      Edit
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          setDeletingNutritionId(plan.id);
+                          setDeleteNutritionOpen(true);
+                        }}
+                      >
+                        <Trash2 className="size-4" />
+                        Delete
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() =>
+                          loadNutritionPlan(plan.id).catch((e) => toast.error(getErrorMessage(e)))
+                        }
+                      >
+                        Edit
+                      </Button>
+                    </div>
                   </div>
                 ))
               )}
@@ -1115,6 +1178,31 @@ export default function PremiumUserDetailPage() {
           </Card>
         </div>
       )}
+      <ConfirmDialog
+        open={deleteWorkoutOpen}
+        onClose={() => {
+          setDeleteWorkoutOpen(false);
+          setDeletingWorkoutId(null);
+        }}
+        title="Delete workout plan?"
+        description="This will permanently delete this workout plan. The user will no longer have access to it."
+        confirmText="Delete"
+        onConfirm={() => deletingWorkoutId && deleteWorkoutMutation.mutate(deletingWorkoutId)}
+        loading={deleteWorkoutMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={deleteNutritionOpen}
+        onClose={() => {
+          setDeleteNutritionOpen(false);
+          setDeletingNutritionId(null);
+        }}
+        title="Delete nutrition plan?"
+        description="This will permanently delete this nutrition plan. The user will no longer have access to it."
+        confirmText="Delete"
+        onConfirm={() => deletingNutritionId && deleteNutritionMutation.mutate(deletingNutritionId)}
+        loading={deleteNutritionMutation.isPending}
+      />
     </div>
   );
 }

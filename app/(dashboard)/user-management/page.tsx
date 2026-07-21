@@ -1,9 +1,8 @@
 "use client";
 
-import { Ban, ChevronLeft, ChevronRight, Plus, Search, ShieldCheck, ShieldOff, Trash2 } from "lucide-react";
+import { Ban, ChevronLeft, ChevronRight, Plus, Search, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -24,7 +23,6 @@ import {
   getAdminUsers,
   getErrorMessage,
   getSubscriptionPlans,
-  updateAdminUserRole,
   updateAdminUserStatus,
   type AdminUser,
   type SubscriptionPlan,
@@ -139,8 +137,6 @@ const defaultSponsoredForm = {
 
 export default function UserManagementPage() {
   const queryClient = useQueryClient();
-  const { data: session } = useSession();
-  const currentUserId = session?.user?._id;
 
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
@@ -148,8 +144,6 @@ export default function UserManagementPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusOpen, setStatusOpen] = useState(false);
   const [statusUser, setStatusUser] = useState<AdminUser | null>(null);
-  const [roleOpen, setRoleOpen] = useState(false);
-  const [roleUser, setRoleUser] = useState<AdminUser | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteUser, setDeleteUser] = useState<AdminUser | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -182,20 +176,6 @@ export default function UserManagementPage() {
       toast.success("User status updated.");
       setStatusOpen(false);
       setStatusUser(null);
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-overview"] });
-    },
-    onError: (error) => {
-      toast.error(getErrorMessage(error));
-    },
-  });
-
-  const changeRoleMutation = useMutation({
-    mutationFn: ({ userId, role }: { userId: string; role: "user" | "admin" }) => updateAdminUserRole(userId, role),
-    onSuccess: () => {
-      toast.success("User role updated.");
-      setRoleOpen(false);
-      setRoleUser(null);
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-overview"] });
     },
@@ -250,15 +230,6 @@ export default function UserManagementPage() {
     nextStatus === "suspended"
       ? "You want to block this user from the platform."
       : "You want to activate this user again.";
-
-  const nextRole = roleUser?.role === "admin" ? "user" : "admin";
-  const roleActionText = nextRole === "admin" ? "Make Admin" : "Revoke Admin";
-  const roleDialogTitle = nextRole === "admin" ? "Make this user an admin?" : "Revoke admin access?";
-  const roleDescription = roleUser
-    ? nextRole === "admin"
-      ? `This will give ${roleUser.name} full admin access to this dashboard. They'll be signed out and need to log in again.`
-      : `This will remove ${roleUser.name}'s admin access and turn them back into a regular user. They'll be signed out and need to log in again.`
-    : "";
 
   const resolvedSponsoredPlanKey = useMemo(() => {
     if (activePlans.some((plan) => plan.key === sponsoredForm.planKey)) {
@@ -346,7 +317,6 @@ export default function UserManagementPage() {
                     <TableHead className="h-11 text-xs">Subscription</TableHead>
                     <TableHead className="h-11 text-xs">Access</TableHead>
                     <TableHead className="h-11 text-xs">Mobility</TableHead>
-                    <TableHead className="h-11 text-xs">Role</TableHead>
                     <TableHead className="h-11 text-xs text-center">Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -355,7 +325,6 @@ export default function UserManagementPage() {
                     const subscriptionMeta = getSubscriptionMeta(user.subscription || "");
                     const statusMeta = getStatusMeta(user.status || "");
                     const sponsoredMeta = getSponsoredMeta(user.isSponsored);
-                    const isSelf = user.id === currentUserId;
 
                     return (
                       <TableRow key={user.id} className="border-white/30 hover:bg-white/[0.03]">
@@ -385,34 +354,6 @@ export default function UserManagementPage() {
                           </span>
                         </TableCell>
                         <TableCell className="py-3 text-sm text-slate-200">{user.mobilityType || "-"}</TableCell>
-                        <TableCell className="py-3">
-                          <div className="flex items-center gap-2">
-                            {isSelf ? (
-                              <span className="text-[11px] text-slate-400">You</span>
-                            ) : (
-                              <button
-                                type="button"
-                                className={cn(
-                                  "inline-flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors",
-                                  user.role === "admin"
-                                    ? "border-[#ff9f31]/60 bg-[#5f3b15]/40 text-[#ff9f31] hover:bg-[#5f3b15]/70"
-                                    : "border-[#2e9bff]/60 bg-[#163457]/60 text-[#2e9bff] hover:bg-[#163457]/90"
-                                )}
-                                onClick={() => {
-                                  setRoleUser(user);
-                                  setRoleOpen(true);
-                                }}
-                              >
-                                {user.role === "admin" ? (
-                                  <ShieldOff className="size-3.5" />
-                                ) : (
-                                  <ShieldCheck className="size-3.5" />
-                                )}
-                                {user.role === "admin" ? "Revoke" : "Make Admin"}
-                              </button>
-                            )}
-                          </div>
-                        </TableCell>
                         <TableCell className="py-3 flex items-center justify-center space-x-2">
                           <span
                             className={cn(
@@ -641,23 +582,6 @@ export default function UserManagementPage() {
         description={statusDescription}
         confirmText={statusActionText}
         loading={statusOpen && changeStatusMutation.isPending}
-      />
-
-      <ConfirmDialog
-        open={roleOpen}
-        onClose={() => {
-          setRoleOpen(false);
-          setRoleUser(null);
-        }}
-        onConfirm={() => {
-          if (roleUser) {
-            changeRoleMutation.mutate({ userId: roleUser.id, role: nextRole });
-          }
-        }}
-        title={roleDialogTitle}
-        description={roleDescription}
-        confirmText={roleActionText}
-        loading={roleOpen && changeRoleMutation.isPending}
       />
 
       <ConfirmDialog
