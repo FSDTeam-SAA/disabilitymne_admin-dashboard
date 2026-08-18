@@ -45,6 +45,7 @@ const defaultForm = {
   exerciseImage: "",
   muscleImage: "",
   demoVideo: "",
+  muteVideo: "false",
   isVisibleInLibrary: "true",
   status: "published",
 };
@@ -204,6 +205,7 @@ function ExerciseLibraryContent() {
       exerciseImage: exercise.exerciseImage || "",
       muscleImage: exercise.targetMuscleImage || "",
       demoVideo: exercise.demoVideo || "",
+      muteVideo: "false",
       isVisibleInLibrary: String(exercise.isVisibleInLibrary),
       status: exercise.status || "published",
     });
@@ -282,6 +284,7 @@ function ExerciseLibraryContent() {
 
     if (demoVideoFile) {
       payload.append("demoVideos", demoVideoFile);
+      payload.append("muteVideo", String(formData.muteVideo === "true"));
     } else if (selectedExercise && formData.demoVideo) {
       payload.append("demoVideos", JSON.stringify([formData.demoVideo]));
     }
@@ -701,6 +704,20 @@ function ExerciseLibraryContent() {
                   className="max-h-56 w-full rounded-lg bg-slate-900"
                 />
               ) : null}
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Video audio</Label>
+              <Select
+                value={formData.muteVideo}
+                onChange={(event) => setFormData((prev) => ({ ...prev, muteVideo: event.target.value }))}
+                disabled={!demoVideoFile}
+              >
+                <option value="false">Keep sound</option>
+                <option value="true">Mute (remove sound)</option>
+              </Select>
+              <p className="text-xs text-slate-400">
+                Applies only when you upload a new video. Choose Mute for the wheelchair videos that should have no sound.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Visible in Library</Label>
